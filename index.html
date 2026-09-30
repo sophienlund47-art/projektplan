@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="7">
+<meta name="app-version" content="8">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -412,6 +412,13 @@ body.kgrabbing{user-select:none;-webkit-user-select:none}
 .ipick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--fg);background:var(--hover)}
 .ipick svg{width:56px;height:34px;color:var(--fg)}
 #undoBtn:disabled{opacity:.45;cursor:default}
+.cpick{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cpick .csw{width:26px;height:26px;border-radius:50%;border:2px solid var(--surface);background:var(--sw);box-shadow:0 0 0 1px var(--line-3);cursor:pointer;padding:0}
+.cpick .csw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--fg)}
+.cpick .cstd{border:1px solid var(--line-3);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--muted)}
+.cpick .cstd[aria-pressed="true"]{border-color:var(--fg);color:var(--fg);background:var(--hover)}
+.cpick .ccustom{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer}
+.cpick .ccustom input{width:28px;height:28px;border:0;padding:0;background:none;cursor:pointer}
 .tsvg [data-txt]{outline:none}
 .tsvg [data-lbl]:hover{filter:drop-shadow(0 0 3px color-mix(in srgb,var(--accent) 45%,transparent))}
 .tsvg [data-txt]:hover .nhit{fill:var(--hover)}
@@ -515,6 +522,7 @@ label.btn{display:inline-flex;align-items:center}
         <button class="btn" id="tAddVlan" type="button">+ VLAN</button>
         <button class="btn" id="tAddDev" type="button">+ Enhed</button>
         <button class="btn" id="tAddText" type="button">+ Tekst</button>
+        <button class="btn" id="tColors" type="button">Farver</button>
         <button class="btn" id="tEditNet" type="button">Enheder og links</button>
         <button class="btn" id="tPng" type="button">Download billede</button>
       </div>
@@ -669,6 +677,7 @@ label.btn{display:inline-flex;align-items:center}
   <h2 id="ed-title">Ny enhed</h2>
   <form id="eform" novalidate>
     <div class="field"><span class="lbl">Ikon</span><div class="ipick" id="ed-icons"></div></div>
+    <div class="field"><span class="lbl">Farve</span><div id="ed-color"></div></div>
     <div class="grid2">
       <div class="field"><label for="ed-name">Navn</label><input id="ed-name" maxlength="30" autocomplete="off" placeholder="Fx DC3"></div>
       <div class="field"><label for="ed-ip">IP-adresse</label><input id="ed-ip" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Valgfri"></div>
@@ -691,6 +700,7 @@ label.btn{display:inline-flex;align-items:center}
   <form id="xform" novalidate>
     <div class="field"><label for="xt-text">Tekst</label><textarea id="xt-text" maxlength="300" placeholder="Fx: OSPF area 0, eller: Trunk: switchport mode trunk"></textarea></div>
     <label class="chk"><input type="checkbox" id="xt-big"> Stor og fed (overskrift)</label>
+    <div class="field"><span class="lbl">Farve</span><div id="xt-color"></div></div>
     <p class="note">Træk teksten derhen, hvor den skal stå. Den kommer med på billedet.</p>
     <div class="actions">
       <button type="button" class="btn danger" id="xt-del">Slet</button>
@@ -733,7 +743,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 7 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 8 · 30. september 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -746,7 +756,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 7</p>
+    <p class="gate-ver">Version 8</p>
   </div>
 </div>
 
@@ -2222,8 +2232,9 @@ window.addEventListener('pointercancel', e => {
 /* Udfyldt ud fra gruppens skitse, whiteboardet og IP-planen. Alt kan rettes i appen og gemmes i settings/topology. */
 const topoEl = $('topo');
 const TOPO_DEFAULT = {
-  wan: { name: 'Skolens net', net: '10.233.192.0/24', gw: '10.233.192.1', icon: 'cloud' },
-  dev: { r1: { name: 'R1', role: 'HQ', icon: 'router' }, r2: { name: 'R2', role: 'Branch', icon: 'router' }, r3: { name: 'R3', role: 'Branch', icon: 'router' }, sw1: { name: 'SW1', role: 'HQ', icon: 'switch' }, sw2: { name: 'SW2', role: 'Branch', icon: 'switch' } },
+  wan: { name: 'Skolens net', net: '10.233.192.0/24', gw: '10.233.192.1', icon: 'cloud', color: '' },
+  colors: { hq: '', br: '' }, ccol: {},
+  dev: { r1: { name: 'R1', role: 'HQ', icon: 'router', color: '' }, r2: { name: 'R2', role: 'Branch', icon: 'router', color: '' }, r3: { name: 'R3', role: 'Branch', icon: 'router', color: '' }, sw1: { name: 'SW1', role: 'HQ', icon: 'switch', color: '' }, sw2: { name: 'SW2', role: 'Branch', icon: 'switch', color: '' } },
   s1: { upIf: 'G0/1' }, s2: { r3If: 'G0/1', r2If: 'G0/2' },
   pos: {}, extra: [], texts: [], aedit: {}, arows: [], cables: {}, loff: {},
   r1: { wanIf: 'G0/1/3', wanIp: '10.233.192.67', lanIf: 'G0/0' },
@@ -2267,13 +2278,17 @@ function normTopo(d){
   if (o.pos && typeof o.pos === 'object') for (const k of Object.keys(TOPO_POS)){ const p = o.pos[k]; if (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) pos[k] = clampP(p[0], p[1]); }
   const extra = (Array.isArray(o.extra) ? o.extra : []).filter(e => e && typeof e === 'object').slice(0, 30).map((e, i) => {
     const [x, y] = clampP(+e.x || 120, +e.y || 700);
-    return { id: typeof e.id === 'string' && /^e[\w-]{1,40}$/.test(e.id) ? e.id : 'e' + i, icon: okIcon(e.icon) ? e.icon : 'pc', name: str(e.name, '', 30), ip: str(e.ip, '', 20), link: str(e.link, '', 44), cable: CABLE_NAME[e.cable] ? e.cable : 'cu', x, y };
+    return { id: typeof e.id === 'string' && /^e[\w-]{1,40}$/.test(e.id) ? e.id : 'e' + i, icon: okIcon(e.icon) ? e.icon : 'pc', name: str(e.name, '', 30), ip: str(e.ip, '', 20), link: str(e.link, '', 44), cable: CABLE_NAME[e.cable] ? e.cable : 'cu', color: okCol(e.color), x, y };
   });
-  for (const k of Object.keys(dev)) if (!okIcon(dev[k].icon)) dev[k].icon = D.dev[k].icon;
-  const wan = sec(o.wan, D.wan); if (!okIcon(wan.icon)) wan.icon = 'cloud';
+  for (const k of Object.keys(dev)){ if (!okIcon(dev[k].icon)) dev[k].icon = D.dev[k].icon; dev[k].color = okCol(dev[k].color); }
+  const wan = sec(o.wan, D.wan); if (!okIcon(wan.icon)) wan.icon = 'cloud'; wan.color = okCol(wan.color);
   const texts = (Array.isArray(o.texts) ? o.texts : []).filter(x => x && typeof x === 'object' && typeof x.text === 'string').slice(0, 40).map((x, i) => ({
     id: typeof x.id === 'string' && /^x[\w-]{1,40}$/.test(x.id) ? x.id : 'x' + i, text: x.text.slice(0, 300),
-    x: Math.round(Math.max(20, Math.min(1180, +x.x || 60))), y: Math.round(Math.max(20, Math.min(1400, +x.y || 60))), big: !!x.big }));
+    x: Math.round(Math.max(20, Math.min(1180, +x.x || 60))), y: Math.round(Math.max(20, Math.min(1400, +x.y || 60))), big: !!x.big, color: okCol(x.color) }));
+  const okColRe = /^#[0-9a-f]{6}$/i;
+  const colors = { hq: okCol(o.colors && o.colors.hq), br: okCol(o.colors && o.colors.br) };
+  const ccol = {};
+  if (o.ccol && typeof o.ccol === 'object') for (const [k, v] of Object.entries(o.ccol).slice(0, 60)) if (okColRe.test(v)) ccol[String(k).slice(0, 60)] = v;
   const cables = {};
   if (o.cables && typeof o.cables === 'object') for (const [k, v] of Object.entries(o.cables).slice(0, 60)) if (CABLE_NAME[v]) cables[String(k).slice(0, 60)] = v;
   const loff = {};
@@ -2282,7 +2297,7 @@ function normTopo(d){
   if (o.aedit && typeof o.aedit === 'object') for (const [k, v] of Object.entries(o.aedit).slice(0, 600)) if (typeof v === 'string') aedit[String(k).slice(0, 120)] = v.slice(0, 160);
   const arows = (Array.isArray(o.arows) ? o.arows : []).filter(r => r && typeof r === 'object').slice(0, 60).map((r, i) => ({
     id: typeof r.id === 'string' && /^a[\w-]{1,40}$/.test(r.id) ? r.id : 'a' + i, dev: str(r.dev, '', 40), ifc: str(r.ifc, '', 40), ip: str(r.ip, '', 40), mask: str(r.mask, '', 40), note: str(r.note, '', 160) }));
-  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, cables, loff, notes: str(o.notes, D.notes, 600) };
+  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, cables, loff, colors, ccol, notes: str(o.notes, D.notes, 600) };
 }
 const topoNow = () => normTopo(topoDoc || TOPO_DEFAULT);
 const devName = (t, k) => t.dev[k].name || k.toUpperCase();
@@ -2385,11 +2400,15 @@ function iconSVG(kind, x, y, col){
   }
   return box;
 }
+const okCol = v => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : '';
+const PALETTE = ['#2f6fe4', '#e0741a', '#1f766f', '#8a5cf0', '#d2438a', '#e5484d', '#2f9e66', '#d9a300', '#6b7682', '#1b232b'];
+/* Tekstfarve oven på en farve: hvid eller mørk, alt efter hvor lys farven er */
+const inkOn = hex => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.3 ? '#1b232b' : '#ffffff'; };
 /* Kabeltyper (som i Packet Tracer). Trunk er en egenskab ved linket, kablet er det fysiske. */
 const CABLES = [['cu', 'Kobber (straight-through)'], ['cross', 'Kobber (crossover)'], ['fiber', 'Fiber'], ['serial', 'Seriel'], ['console', 'Konsolkabel'], ['wifi', 'Trådløs']];
 const CABLE_NAME = Object.fromEntries(CABLES);
-function cableSt(type, trunk){
-  const col = { cu: 'var(--muted)', cross: 'var(--muted)', fiber: 'var(--p2)', serial: 'var(--dead-ink)', console: 'var(--p1)', wifi: 'var(--muted)' }[type] || 'var(--muted)';
+function cableSt(type, trunk, over){
+  const col = over || { cu: 'var(--muted)', cross: 'var(--muted)', fiber: 'var(--p2)', serial: 'var(--dead-ink)', console: 'var(--p1)', wifi: 'var(--muted)' }[type] || 'var(--muted)';
   const dash = { cross: ';stroke-dasharray:9 5', console: ';stroke-dasharray:2 5', wifi: ';stroke-dasharray:1 6' }[type] || '';
   const w = trunk && !dash ? 5 : type === 'fiber' || type === 'serial' ? 2.6 : 2;
   const out = [`stroke:${col};stroke-width:${w};stroke-linecap:round${dash}`];
@@ -2399,7 +2418,7 @@ function cableSt(type, trunk){
 const TOPO_POS = { wan: [330, 74], r1: [330, 230], sw1: [620, 230], r3: [180, 414], r2: [480, 414], sw2: [330, 582] };
 const posOf = (t, k) => (t.pos && t.pos[k]) || TOPO_POS[k];
 function topoSVG(t){
-  const C = { hq: 'var(--t-hq)', br: 'var(--t-br)' };
+  const C = { hq: t.colors.hq || 'var(--t-hq)', br: t.colors.br || 'var(--t-br)' };
   const byV = (a, b) => a.vlan - b.vlan || a.name.localeCompare(b.name, 'da');
   const hq = t.vlans.filter(v => v.site === 'hq').sort(byV), br = t.vlans.filter(v => v.site === 'br').sort(byV);
   const SP = 700, RX = 720, RE = 1172;
@@ -2442,7 +2461,7 @@ function topoSVG(t){
     const lb = [b[0] - u[0] * db + out[0] * 14, b[1] - u[1] * db + out[1] * 14 + (out[1] < 0 ? -4 : 4)];
     const m = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
     const ctype = o.cable || t.cables[o.id] || 'cu'; used.add(ctype);
-    const sts = cableSt(ctype, o.trunk);
+    const sts = cableSt(ctype, o.trunk, t.ccol[o.id] || o.color);
     let s = sts.map(st => `<line x1="${f1(p1[0])}" y1="${f1(p1[1])}" x2="${f1(p2[0])}" y2="${f1(p2[1])}" style="${st}"/>`).join('');
     s += LB(o.id + ':a', endLbl(la[0], la[1], anchor, o.a1 || '', o.a2 || '')) + LB(o.id + ':b', endLbl(lb[0], lb[1], anchor, o.b1 || '', o.b2 || ''));
     if (o.chip) s += LB(o.id + ':chip', chip(m[0], m[1], o.chip));
@@ -2464,7 +2483,7 @@ function topoSVG(t){
       + LB('hsrp', txt(m[0], m[1] - 8, 'HSRP', `font-size:13.5px;font-weight:600;${HALO}`, 'middle') + txt(m[0], m[1] + 18, 'fælles gateway', `font-size:12px;fill:var(--muted);${HALO}`, 'middle'));
   }
   for (const [rk, L, sp] of [['r3', t.l3, t.s2.r3If], ['r2', t.l2, t.s2.r2If]]) g += link(rk, 'sw2', { id: rk + 'sw2', trunk: true, net: rk, aria: `Trunk fra ${N(rk)} til ${N('sw2')}`, a1: L.lanIf, b1: sp, mid: 'trunk' });
-  for (const e of t.extra) if (e.link && P[e.link] && e.link !== e.id) g += link(e.id, e.link, { id: 'ex:' + e.id, cable: e.cable, a1: '', b1: '' });
+  for (const e of t.extra) if (e.link && P[e.link] && e.link !== e.id) g += link(e.id, e.link, { id: 'ex:' + e.id, cable: e.cable, color: e.color, a1: '', b1: '' });
 
   // Switch → VLAN'er
   const list = (vs, top, key, site, capTxt) => {
@@ -2528,11 +2547,11 @@ function topoSVG(t){
       + `<rect class="nhit" fill="transparent" x="${f1(hit[0])}" y="${f1(hit[1])}" width="${f1(hit[2])}" height="${f1(hit[3])}" rx="10"/>`
       + iconSVG(kind, x, y, col) + LB('dev:' + key, lbl) + '</g>';
   };
-  g += device('wan', 'data-net="wan"', KIND.wan, 'var(--muted)', t.wan.name || 'Skolens net', t.wan.net, '', `${t.wan.name}, ${t.wan.net}`);
+  g += device('wan', 'data-net="wan"', KIND.wan, t.wan.color || 'var(--muted)', t.wan.name || 'Skolens net', t.wan.net, '', `${t.wan.name}, ${t.wan.net}`);
   for (const [k, col] of [['r1', C.hq], ['sw1', C.hq], ['r3', C.br], ['r2', C.br], ['sw2', C.br]]){
     const kind = KIND[k], role = t.dev[k].role || '';
     const sub = k[0] === 's' && kind === 'switch' ? (role ? role + '-switch' : 'switch') : role;
-    g += device(k, `data-net="${k}"`, kind, col, N(k), sub, '', `${N(k)}, ${ICON_NAME[kind] || ''}, ${role}`);
+    g += device(k, `data-net="${k}"`, kind, t.dev[k].color || col, N(k), sub, '', `${N(k)}, ${ICON_NAME[kind] || ''}, ${role}`);
   }
   // Access-porte fra switchen ud til HQ og Branch, skrevet under switchen
   for (const [k, list] of [['sw1', hq], ['sw2', br]]){
@@ -2542,14 +2561,14 @@ function topoSVG(t){
     g += LB('ports:' + k, `<g data-net="sw1">` + txt(x, y0, 'ACCESS-PORTE', `${MONO};font-size:10.5px;letter-spacing:.08em;fill:var(--muted);${HALO}`, 'middle')
       + rows.map((v, i) => `<text x="${x}" y="${f1(y0 + 17 + i * 16)}" text-anchor="middle" style="${MONO};font-size:12px;${HALO}">${esc(v.ports)}<tspan style="fill:var(--muted)"> → VLAN ${v.vlan}</tspan></text>`).join('') + '</g>');
   }
-  for (const e of t.extra) g += device(e.id, `data-ext="${esc(e.id)}"`, e.icon, 'var(--accent)', e.name || ICON_NAME[e.icon] || 'Enhed', ICON_NAME[e.icon] || '', e.ip, `${e.name}, ${ICON_NAME[e.icon] || ''}`);
+  for (const e of t.extra) g += device(e.id, `data-ext="${esc(e.id)}"`, e.icon, e.color || 'var(--accent)', e.name || ICON_NAME[e.icon] || 'Enhed', ICON_NAME[e.icon] || '', e.ip, `${e.name}, ${ICON_NAME[e.icon] || ''}`);
 
   for (const x of t.texts){
     const lines = x.text.split('\n'), fs = x.big ? 17 : 13.5, lh = fs * 1.35;
     const w = Math.max(...lines.map(l => TW(l, fs))) + 16, h = lines.length * lh + 10;
     g += `<g data-txt="${esc(x.id)}" data-drag="${esc(x.id)}" tabindex="0" role="button" aria-label="Tekst: ${esc(x.text)}. Klik for at rette, træk for at flytte." style="cursor:grab">`
       + `<rect class="nhit" fill="transparent" x="${f1(x.x - 8)}" y="${f1(x.y - fs - 4)}" width="${f1(w)}" height="${f1(h)}" rx="6"/>`
-      + lines.map((l, i) => txt(x.x, x.y + i * lh, l, `font-size:${fs}px;${x.big ? 'font-weight:700;' : ''}${HALO}`)).join('') + '</g>';
+      + lines.map((l, i) => txt(x.x, x.y + i * lh, l, `font-size:${fs}px;${x.big ? 'font-weight:700;' : ''}${x.color ? `fill:${x.color};` : ''}${HALO}`)).join('') + '</g>';
   }
   { // Forklaring på kablerne, der er brugt
     let ly = 54;
@@ -2664,6 +2683,7 @@ function renderTopo(){
   $('topoMap').innerHTML = amapHTML(t);
   $('topoPlan').innerHTML = planHTML(t, checks);
   $('topoAddr').innerHTML = addrHTML(t);
+  for (const k of ['hq', 'br']){ if (t.colors[k]){ topoEl.style.setProperty('--t-' + k, t.colors[k]); topoEl.style.setProperty(`--t-${k}-ink`, inkOn(t.colors[k])); } else { topoEl.style.removeProperty('--t-' + k); topoEl.style.removeProperty(`--t-${k}-ink`); } }
   $('topoChecks').innerHTML = checksHTML(checks);
   fitMapLabels();
 }
@@ -2714,6 +2734,7 @@ topoEl.addEventListener('keydown', e => {
 });
 $('tAddVlan').onclick = () => openVlan(null);
 $('tEditNet').onclick = () => openNet(null);
+$('tColors').onclick = () => openNet('colors');
 $('tCopyPlan').onclick = () => copyTable($('topoPlan'));
 $('tCopyAddr').onclick = () => copyTable($('topoAddr'));
 $('tPng').onclick = () => exportTopoPNG();
@@ -2864,13 +2885,14 @@ const setP = (o, p, v) => { const ks = p.split('.'); let a = o; for (let i = 0; 
 function netSections(t){
   const N = k => devName(t, k);
   return [
-    { key: 'wan', h: t.wan.name || 'Skolens net', f: [['wan.icon', 'Ikon', '', 'icon'], ['wan.name', 'Navn'], ['wan.net', 'Netværk', '10.233.192.0/24'], ['wan.gw', 'Gateway', '10.233.192.1'], ['r1.wanIf', `Interface på ${N('r1')}`, 'G0/1/3'], ['r1.wanIp', `IP på ${N('r1')}`, '10.233.192.67'], ['cables.wan', 'Kabeltype', '', 'cable']] },
-    { key: 'r1', h: `${N('r1')} · ${t.dev.r1.role || 'router'}`, f: [['dev.r1.icon', 'Ikon', '', 'icon'], ['dev.r1.name', 'Navn'], ['dev.r1.role', 'Rolle'], ['r1.lanIf', `Interface mod ${N('sw1')} (trunk)`, 'G0/0'], ['cables.r1sw1', `Kabel til ${N('sw1')}`, '', 'cable']] },
-    { key: 'l3', h: `Link ${N('r1')} – ${N('r3')}`, f: [['l3.net', 'Netværk', '172.16.67.0/30'], ['l3.r1If', `Interface på ${N('r1')}`], ['l3.r1Ip', `IP på ${N('r1')}`], ['l3.rIf', `Interface på ${N('r3')}`], ['l3.rIp', `IP på ${N('r3')}`], ['cables.l3', 'Kabeltype', '', 'cable']] },
-    { key: 'l2', h: `Link ${N('r1')} – ${N('r2')}`, f: [['l2.net', 'Netværk', '172.16.67.4/30'], ['l2.r1If', `Interface på ${N('r1')}`], ['l2.r1Ip', `IP på ${N('r1')}`], ['l2.rIf', `Interface på ${N('r2')}`], ['l2.rIp', `IP på ${N('r2')}`], ['cables.l2', 'Kabeltype', '', 'cable']] },
-    { key: 'r3', h: `${N('r3')} · ${t.dev.r3.role || 'router'}`, f: [['dev.r3.icon', 'Ikon', '', 'icon'], ['dev.r3.name', 'Navn'], ['dev.r3.role', 'Rolle'], ['l3.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0'], ['cables.r3sw2', `Kabel til ${N('sw2')}`, '', 'cable']] },
-    { key: 'r2', h: `${N('r2')} · ${t.dev.r2.role || 'router'}`, f: [['dev.r2.icon', 'Ikon', '', 'icon'], ['dev.r2.name', 'Navn'], ['dev.r2.role', 'Rolle'], ['l2.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0'], ['cables.r2sw2', `Kabel til ${N('sw2')}`, '', 'cable']] },
-    { key: 'sw1', h: 'Switche', f: [['dev.sw1.icon', 'Ikon for HQ-switchen', '', 'icon'], ['dev.sw1.name', 'Navn på HQ-switchen'], ['dev.sw1.role', 'Sted (vises som HQ)'], ['s1.upIf', `Port på ${N('sw1')} mod ${N('r1')} (trunk)`, 'G0/1'], ['dev.sw2.icon', 'Ikon for branch-switchen', '', 'icon'], ['dev.sw2.name', 'Navn på branch-switchen'], ['dev.sw2.role', 'Sted (vises som Branch)'], ['s2.r3If', `Port på ${N('sw2')} mod ${N('r3')} (trunk)`, 'G0/1'], ['s2.r2If', `Port på ${N('sw2')} mod ${N('r2')} (trunk)`, 'G0/2']] },
+    { key: 'colors', h: 'Farver', f: [['colors.hq', `Farve for ${siteName(t, 'hq')}`, '', 'color'], ['colors.br', `Farve for ${siteName(t, 'br')}`, '', 'color']] },
+    { key: 'wan', h: t.wan.name || 'Skolens net', f: [['wan.icon', 'Ikon', '', 'icon'], ['wan.color', 'Farve', '', 'color'], ['ccol.wan', 'Kabelfarve', '', 'color'], ['wan.name', 'Navn'], ['wan.net', 'Netværk', '10.233.192.0/24'], ['wan.gw', 'Gateway', '10.233.192.1'], ['r1.wanIf', `Interface på ${N('r1')}`, 'G0/1/3'], ['r1.wanIp', `IP på ${N('r1')}`, '10.233.192.67'], ['cables.wan', 'Kabeltype', '', 'cable']] },
+    { key: 'r1', h: `${N('r1')} · ${t.dev.r1.role || 'router'}`, f: [['dev.r1.icon', 'Ikon', '', 'icon'], ['dev.r1.color', 'Farve', '', 'color'], ['dev.r1.name', 'Navn'], ['dev.r1.role', 'Rolle'], ['r1.lanIf', `Interface mod ${N('sw1')} (trunk)`, 'G0/0'], ['cables.r1sw1', `Kabel til ${N('sw1')}`, '', 'cable'], ['ccol.r1sw1', `Kabelfarve til ${N('sw1')}`, '', 'color']] },
+    { key: 'l3', h: `Link ${N('r1')} – ${N('r3')}`, f: [['l3.net', 'Netværk', '172.16.67.0/30'], ['l3.r1If', `Interface på ${N('r1')}`], ['l3.r1Ip', `IP på ${N('r1')}`], ['l3.rIf', `Interface på ${N('r3')}`], ['l3.rIp', `IP på ${N('r3')}`], ['cables.l3', 'Kabeltype', '', 'cable'], ['ccol.l3', 'Kabelfarve', '', 'color']] },
+    { key: 'l2', h: `Link ${N('r1')} – ${N('r2')}`, f: [['l2.net', 'Netværk', '172.16.67.4/30'], ['l2.r1If', `Interface på ${N('r1')}`], ['l2.r1Ip', `IP på ${N('r1')}`], ['l2.rIf', `Interface på ${N('r2')}`], ['l2.rIp', `IP på ${N('r2')}`], ['cables.l2', 'Kabeltype', '', 'cable'], ['ccol.l2', 'Kabelfarve', '', 'color']] },
+    { key: 'r3', h: `${N('r3')} · ${t.dev.r3.role || 'router'}`, f: [['dev.r3.icon', 'Ikon', '', 'icon'], ['dev.r3.color', 'Farve', '', 'color'], ['dev.r3.name', 'Navn'], ['dev.r3.role', 'Rolle'], ['l3.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0'], ['cables.r3sw2', `Kabel til ${N('sw2')}`, '', 'cable'], ['ccol.r3sw2', `Kabelfarve til ${N('sw2')}`, '', 'color']] },
+    { key: 'r2', h: `${N('r2')} · ${t.dev.r2.role || 'router'}`, f: [['dev.r2.icon', 'Ikon', '', 'icon'], ['dev.r2.color', 'Farve', '', 'color'], ['dev.r2.name', 'Navn'], ['dev.r2.role', 'Rolle'], ['l2.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0'], ['cables.r2sw2', `Kabel til ${N('sw2')}`, '', 'cable'], ['ccol.r2sw2', `Kabelfarve til ${N('sw2')}`, '', 'color']] },
+    { key: 'sw1', h: 'Switche', f: [['dev.sw1.icon', 'Ikon for HQ-switchen', '', 'icon'], ['dev.sw1.color', 'Farve for HQ-switchen', '', 'color'], ['dev.sw1.name', 'Navn på HQ-switchen'], ['dev.sw1.role', 'Sted (vises som HQ)'], ['s1.upIf', `Port på ${N('sw1')} mod ${N('r1')} (trunk)`, 'G0/1'], ['dev.sw2.icon', 'Ikon for branch-switchen', '', 'icon'], ['dev.sw2.color', 'Farve for branch-switchen', '', 'color'], ['dev.sw2.name', 'Navn på branch-switchen'], ['dev.sw2.role', 'Sted (vises som Branch)'], ['s2.r3If', `Port på ${N('sw2')} mod ${N('r3')} (trunk)`, 'G0/1'], ['s2.r2If', `Port på ${N('sw2')} mod ${N('r2')} (trunk)`, 'G0/2']] },
     { key: 'notes', h: 'Noter', f: [['notes', 'Vises under topologien (fx routing)', '', 'area']] }
   ];
 }
@@ -2881,6 +2903,7 @@ function openNet(focus){
   let n = 0;
   $('nt-body').innerHTML = sections.map(s => `<section class="npsec" data-sec="${s.key}"><h3>${esc(s.h)}</h3>${s.f.some(f => f[3] === 'area') ? '' : '<div class="grid2">'}${s.f.map(([p, lab, ph, kind]) => {
     const id = 'nf-' + (n++), val = getP(t, p) ?? '';
+    if (kind === 'color') return `<div class="field" style="grid-column:1/-1"><span class="lbl">${esc(lab)}</span>${colorPickHTML(val, p)}</div>`;
     if (kind === 'cable') return `<div class="field"><label for="${id}">${esc(lab)}</label><select id="${id}" data-k="${p}"${readOnly ? ' disabled' : ''}>${CABLES.map(([k, n]) => `<option value="${k}"${(val || 'cu') === k ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`;
     if (kind === 'icon') return `<div class="field" style="grid-column:1/-1"><span class="lbl">${esc(lab)}</span><div class="ipick"><input type="hidden" data-k="${p}" value="${esc(val)}">${iconPickHTML(val)}</div></div>`;
     return kind === 'area'
@@ -2909,6 +2932,7 @@ $('nform').addEventListener('submit', e => {
   if (readOnly || !ndraft) return;
   const next = topoNow();
   $('nt-body').querySelectorAll('[data-k]').forEach(el => setP(next, el.dataset.k, el.value.trim()));
+  for (const k of Object.keys(next.ccol)) if (!next.ccol[k]) delete next.ccol[k];
   closePanels();
   if (JSON.stringify(next) === JSON.stringify(topoNow())) return;
   saveTopo(next, 'Enheder og links er gemt');
@@ -2919,6 +2943,19 @@ $('nt-reset').onclick = () => {
   closePanels();
   saveTopo(JSON.parse(JSON.stringify(TOPO_DEFAULT)), 'Topologien er nulstillet til skabelonen');
 };
+
+/* Farvevælger: faste farver, egen farve eller "Standard" (tom = appens egen farve) */
+function colorPickHTML(val, path){
+  const v = val || '';
+  return `<div class="cpick"${path ? '' : ''}>${path ? `<input type="hidden" data-k="${path}" value="${esc(v)}">` : '<input type="hidden" class="cval" value="' + esc(v) + '">'}`
+    + `<button type="button" class="cstd" data-color="" aria-pressed="${!v}" title="Standardfarve"${readOnly ? ' disabled' : ''}>Standard</button>`
+    + PALETTE.map(c => `<button type="button" class="csw" data-color="${c}" style="--sw:${c}" aria-pressed="${v === c}" aria-label="Farve ${c}"${readOnly ? ' disabled' : ''}></button>`).join('')
+    + `<label class="ccustom" title="Vælg selv en farve"><input type="color" value="${v || '#2f6fe4'}"${readOnly ? ' disabled' : ''}><span>Egen</span></label></div>`;
+}
+const setCpick = (box, c) => { box.querySelector('input[type=hidden]').value = c; box.querySelectorAll('[data-color]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.color === c))); };
+document.addEventListener('click', e => { const b = e.target.closest('.cpick [data-color]'); if (!b || b.disabled) return; setCpick(b.closest('.cpick'), b.dataset.color); });
+document.addEventListener('input', e => { if (e.target.matches('.cpick input[type=color]')) setCpick(e.target.closest('.cpick'), e.target.value.toLowerCase()); });
+const cpickVal = el => el ? el.querySelector('input[type=hidden]').value : '';
 
 /* Ikon-vælger (bruges i panelerne) */
 function iconPickHTML(sel){
@@ -2982,7 +3019,7 @@ function openExtra(id){
   const n = t.extra.length;
   edraft = e ? { ...e } : { id: 'e' + Date.now().toString(36), icon: 'server', name: '', ip: '', link: 'sw2', cable: 'cu', x: 120 + (n % 5) * 110, y: 730 + Math.floor(n / 5) * 120, isNew: true };
   $('ed-title').textContent = e ? (e.name || ICON_NAME[e.icon] || 'Enhed') : 'Ny enhed';
-  $('ed-icons').innerHTML = iconPickHTML(edraft.icon);
+  $('ed-icons').innerHTML = iconPickHTML(edraft.icon); $('ed-color').innerHTML = colorPickHTML(edraft.color || '');
   $('ed-name').value = edraft.name; $('ed-ip').value = edraft.ip;
   const opts = [['', 'Ingen forbindelse'], ['wan', t.wan.name || 'Skolens net'], ...['r1', 'sw1', 'r3', 'r2', 'sw2'].map(k => [k, devName(t, k)]), ...t.extra.filter(x => x.id !== edraft.id).map(x => [x.id, x.name || ICON_NAME[x.icon]])];
   $('ed-link').innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
@@ -3010,7 +3047,7 @@ $('eform').addEventListener('submit', e => {
   const ip = $('ed-ip').value.trim();
   if (ip && ip2n(ip) == null){ $('ed-err').textContent = `“${ip}” er ikke en gyldig IP-adresse.`; $('ed-err').hidden = false; return; }
   const next = topoNow();
-  const ne = { id: edraft.id, icon: edraft.icon, name: $('ed-name').value.trim(), ip, link: $('ed-link').value, cable: $('ed-cable').value, x: edraft.x, y: edraft.y };
+  const ne = { id: edraft.id, icon: edraft.icon, name: $('ed-name').value.trim(), ip, link: $('ed-link').value, cable: $('ed-cable').value, color: cpickVal($('ed-color')), x: edraft.x, y: edraft.y };
   const i = next.extra.findIndex(x => x.id === ne.id);
   if (i >= 0){ ne.x = next.extra[i].x; ne.y = next.extra[i].y; next.extra[i] = ne; } else next.extra.push(ne);
   closePanels();
@@ -3024,7 +3061,7 @@ function openText(id){
   if (id && !x) return;
   const svg = $('topoSvg').querySelector('svg'), vb = svg ? svg.viewBox.baseVal : { height: 700 };
   xdraft = x ? { ...x } : { id: 'x' + Date.now().toString(36), text: '', x: 60, y: Math.max(60, vb.height - 40), big: false, isNew: true };
-  $('xt-text').value = xdraft.text; $('xt-big').checked = xdraft.big;
+  $('xt-text').value = xdraft.text; $('xt-big').checked = xdraft.big; $('xt-color').innerHTML = colorPickHTML(xdraft.color || '');
   $('xt-title').textContent = x ? 'Rediger tekst' : 'Ny tekst';
   $('xform').querySelectorAll('textarea, input').forEach(z => z.disabled = readOnly);
   $('xt-save').hidden = readOnly; $('xt-del').hidden = !x || readOnly; $('xt-del').classList.remove('armed'); $('xt-del').textContent = 'Slet';
@@ -3045,7 +3082,7 @@ $('xform').addEventListener('submit', e => {
   if (!xdraft || readOnly) return;
   const text = $('xt-text').value.replace(/\s+$/, '');
   if (!text.trim()){ closePanels(); return; }
-  const next = topoNow(), nx = { id: xdraft.id, text, x: xdraft.x, y: xdraft.y, big: $('xt-big').checked };
+  const next = topoNow(), nx = { id: xdraft.id, text, x: xdraft.x, y: xdraft.y, big: $('xt-big').checked, color: cpickVal($('xt-color')) };
   const i = next.texts.findIndex(z => z.id === nx.id);
   if (i >= 0){ nx.x = next.texts[i].x; nx.y = next.texts[i].y; next.texts[i] = nx; } else next.texts.push(nx);
   closePanels(); saveTopo(next, i >= 0 ? 'Teksten er gemt' : 'Teksten er tilføjet. Træk den derhen, hvor den skal stå.');
