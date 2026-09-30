@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="8">
+<meta name="app-version" content="9">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -743,7 +743,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 8 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 9 · 30. september 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -756,7 +756,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 8</p>
+    <p class="gate-ver">Version 9</p>
   </div>
 </div>
 
@@ -2410,10 +2410,9 @@ const CABLE_NAME = Object.fromEntries(CABLES);
 function cableSt(type, trunk, over){
   const col = over || { cu: 'var(--muted)', cross: 'var(--muted)', fiber: 'var(--p2)', serial: 'var(--dead-ink)', console: 'var(--p1)', wifi: 'var(--muted)' }[type] || 'var(--muted)';
   const dash = { cross: ';stroke-dasharray:9 5', console: ';stroke-dasharray:2 5', wifi: ';stroke-dasharray:1 6' }[type] || '';
-  const w = trunk && !dash ? 5 : type === 'fiber' || type === 'serial' ? 2.6 : 2;
-  const out = [`stroke:${col};stroke-width:${w};stroke-linecap:round${dash}`];
-  if (trunk && !dash) out.push('stroke:var(--surface);stroke-width:1.6;stroke-linecap:round');
-  return out;
+  // Ét kabel = én linje. Trunk vises kun med teksten "trunk" (en dobbeltstreg ligner EtherChannel).
+  const w = type === 'fiber' || type === 'serial' ? 2.6 : 2;
+  return [`stroke:${col};stroke-width:${w};stroke-linecap:round${dash}`];
 }
 const TOPO_POS = { wan: [330, 74], r1: [330, 230], sw1: [620, 230], r3: [180, 414], r2: [480, 414], sw2: [330, 582] };
 const posOf = (t, k) => (t.pos && t.pos[k]) || TOPO_POS[k];
