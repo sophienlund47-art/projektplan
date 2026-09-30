@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="6">
+<meta name="app-version" content="7">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -413,6 +413,7 @@ body.kgrabbing{user-select:none;-webkit-user-select:none}
 .ipick svg{width:56px;height:34px;color:var(--fg)}
 #undoBtn:disabled{opacity:.45;cursor:default}
 .tsvg [data-txt]{outline:none}
+.tsvg [data-lbl]:hover{filter:drop-shadow(0 0 3px color-mix(in srgb,var(--accent) 45%,transparent))}
 .tsvg [data-txt]:hover .nhit{fill:var(--hover)}
 .tsvg [data-txt]:focus-visible .nhit{stroke:var(--accent);stroke-width:2}
 .ttable .acell,.ttable .arow-in{width:100%;min-width:90px;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 7px;font:inherit;font-size:12.5px;color:var(--fg)}
@@ -672,7 +673,10 @@ label.btn{display:inline-flex;align-items:center}
       <div class="field"><label for="ed-name">Navn</label><input id="ed-name" maxlength="30" autocomplete="off" placeholder="Fx DC3"></div>
       <div class="field"><label for="ed-ip">IP-adresse</label><input id="ed-ip" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Valgfri"></div>
     </div>
-    <div class="field"><label for="ed-link">Forbundet til</label><select id="ed-link"></select></div>
+    <div class="grid2">
+      <div class="field"><label for="ed-link">Forbundet til</label><select id="ed-link"></select></div>
+      <div class="field"><label for="ed-cable">Kabeltype</label><select id="ed-cable"></select></div>
+    </div>
     <p class="note">Træk enheden rundt i tegningen for at flytte den.</p>
     <div class="err" id="ed-err" hidden></div>
     <div class="actions">
@@ -729,7 +733,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 6 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 7 · 30. september 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -742,7 +746,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 6</p>
+    <p class="gate-ver">Version 7</p>
   </div>
 </div>
 
@@ -2221,7 +2225,7 @@ const TOPO_DEFAULT = {
   wan: { name: 'Skolens net', net: '10.233.192.0/24', gw: '10.233.192.1', icon: 'cloud' },
   dev: { r1: { name: 'R1', role: 'HQ', icon: 'router' }, r2: { name: 'R2', role: 'Branch', icon: 'router' }, r3: { name: 'R3', role: 'Branch', icon: 'router' }, sw1: { name: 'SW1', role: 'HQ', icon: 'switch' }, sw2: { name: 'SW2', role: 'Branch', icon: 'switch' } },
   s1: { upIf: 'G0/1' }, s2: { r3If: 'G0/1', r2If: 'G0/2' },
-  pos: {}, extra: [], texts: [], aedit: {}, arows: [],
+  pos: {}, extra: [], texts: [], aedit: {}, arows: [], cables: {}, loff: {},
   r1: { wanIf: 'G0/1/3', wanIp: '10.233.192.67', lanIf: 'G0/0' },
   l3: { net: '172.16.67.0/30', r1If: 'G0/1', r1Ip: '172.16.67.1', rIf: 'G0/1', rIp: '172.16.67.2', lanIf: 'G0/0' },
   l2: { net: '172.16.67.4/30', r1If: 'G0/1/0', r1Ip: '172.16.67.5', rIf: 'G0/1', rIp: '172.16.67.6', lanIf: 'G0/0' },
@@ -2263,18 +2267,22 @@ function normTopo(d){
   if (o.pos && typeof o.pos === 'object') for (const k of Object.keys(TOPO_POS)){ const p = o.pos[k]; if (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) pos[k] = clampP(p[0], p[1]); }
   const extra = (Array.isArray(o.extra) ? o.extra : []).filter(e => e && typeof e === 'object').slice(0, 30).map((e, i) => {
     const [x, y] = clampP(+e.x || 120, +e.y || 700);
-    return { id: typeof e.id === 'string' && /^e[\w-]{1,40}$/.test(e.id) ? e.id : 'e' + i, icon: okIcon(e.icon) ? e.icon : 'pc', name: str(e.name, '', 30), ip: str(e.ip, '', 20), link: str(e.link, '', 44), x, y };
+    return { id: typeof e.id === 'string' && /^e[\w-]{1,40}$/.test(e.id) ? e.id : 'e' + i, icon: okIcon(e.icon) ? e.icon : 'pc', name: str(e.name, '', 30), ip: str(e.ip, '', 20), link: str(e.link, '', 44), cable: CABLE_NAME[e.cable] ? e.cable : 'cu', x, y };
   });
   for (const k of Object.keys(dev)) if (!okIcon(dev[k].icon)) dev[k].icon = D.dev[k].icon;
   const wan = sec(o.wan, D.wan); if (!okIcon(wan.icon)) wan.icon = 'cloud';
   const texts = (Array.isArray(o.texts) ? o.texts : []).filter(x => x && typeof x === 'object' && typeof x.text === 'string').slice(0, 40).map((x, i) => ({
     id: typeof x.id === 'string' && /^x[\w-]{1,40}$/.test(x.id) ? x.id : 'x' + i, text: x.text.slice(0, 300),
     x: Math.round(Math.max(20, Math.min(1180, +x.x || 60))), y: Math.round(Math.max(20, Math.min(1400, +x.y || 60))), big: !!x.big }));
+  const cables = {};
+  if (o.cables && typeof o.cables === 'object') for (const [k, v] of Object.entries(o.cables).slice(0, 60)) if (CABLE_NAME[v]) cables[String(k).slice(0, 60)] = v;
+  const loff = {};
+  if (o.loff && typeof o.loff === 'object') for (const [k, v] of Object.entries(o.loff).slice(0, 300)) if (Array.isArray(v) && v.length === 2 && v.every(Number.isFinite)) loff[String(k).slice(0, 60)] = v.map(n => Math.round(Math.max(-900, Math.min(900, n))));
   const aedit = {};
   if (o.aedit && typeof o.aedit === 'object') for (const [k, v] of Object.entries(o.aedit).slice(0, 600)) if (typeof v === 'string') aedit[String(k).slice(0, 120)] = v.slice(0, 160);
   const arows = (Array.isArray(o.arows) ? o.arows : []).filter(r => r && typeof r === 'object').slice(0, 60).map((r, i) => ({
     id: typeof r.id === 'string' && /^a[\w-]{1,40}$/.test(r.id) ? r.id : 'a' + i, dev: str(r.dev, '', 40), ifc: str(r.ifc, '', 40), ip: str(r.ip, '', 40), mask: str(r.mask, '', 40), note: str(r.note, '', 160) }));
-  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, notes: str(o.notes, D.notes, 600) };
+  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, cables, loff, notes: str(o.notes, D.notes, 600) };
 }
 const topoNow = () => normTopo(topoDoc || TOPO_DEFAULT);
 const devName = (t, k) => t.dev[k].name || k.toUpperCase();
@@ -2377,6 +2385,17 @@ function iconSVG(kind, x, y, col){
   }
   return box;
 }
+/* Kabeltyper (som i Packet Tracer). Trunk er en egenskab ved linket, kablet er det fysiske. */
+const CABLES = [['cu', 'Kobber (straight-through)'], ['cross', 'Kobber (crossover)'], ['fiber', 'Fiber'], ['serial', 'Seriel'], ['console', 'Konsolkabel'], ['wifi', 'Trådløs']];
+const CABLE_NAME = Object.fromEntries(CABLES);
+function cableSt(type, trunk){
+  const col = { cu: 'var(--muted)', cross: 'var(--muted)', fiber: 'var(--p2)', serial: 'var(--dead-ink)', console: 'var(--p1)', wifi: 'var(--muted)' }[type] || 'var(--muted)';
+  const dash = { cross: ';stroke-dasharray:9 5', console: ';stroke-dasharray:2 5', wifi: ';stroke-dasharray:1 6' }[type] || '';
+  const w = trunk && !dash ? 5 : type === 'fiber' || type === 'serial' ? 2.6 : 2;
+  const out = [`stroke:${col};stroke-width:${w};stroke-linecap:round${dash}`];
+  if (trunk && !dash) out.push('stroke:var(--surface);stroke-width:1.6;stroke-linecap:round');
+  return out;
+}
 const TOPO_POS = { wan: [330, 74], r1: [330, 230], sw1: [620, 230], r3: [180, 414], r2: [480, 414], sw2: [330, 582] };
 const posOf = (t, k) => (t.pos && t.pos[k]) || TOPO_POS[k];
 function topoSVG(t){
@@ -2400,11 +2419,13 @@ function topoSVG(t){
   const f1 = n => n.toFixed(1);
   let g = '';
   const lg2 = 49 + TW(siteName(t, 'hq'), 13) * 1.2 + 16;
-  g += `<g><rect x="32" y="24" width="11" height="11" rx="2" style="fill:${C.hq}"/>${txt(49, 34.5, siteName(t, 'hq'), 'font-size:13px;fill:var(--muted)')}`
+  g += `<g data-lbl="sites" transform="translate(${(t.loff.sites || [0, 0]).join(' ')})" style="cursor:move"><rect x="32" y="24" width="11" height="11" rx="2" style="fill:${C.hq}"/>${txt(49, 34.5, siteName(t, 'hq'), 'font-size:13px;fill:var(--muted)')}`
     + `<rect x="${f1(lg2)}" y="24" width="11" height="11" rx="2" style="fill:${C.br}"/>${txt(lg2 + 17, 34.5, siteName(t, 'br'), 'font-size:13px;fill:var(--muted)')}</g>`;
 
+  const LB = (id, inner) => { if (!inner) return ''; const o = t.loff[id] || [0, 0]; return `<g data-lbl="${esc(id)}" transform="translate(${o[0]} ${o[1]})" style="cursor:move">${inner}</g>`; };
   const endLbl = (x, y, anchor, a, b) => (a ? txt(x, y, a, `${MONO};font-size:12.5px;font-weight:500;${HALO}`, anchor) : '') + (b ? txt(x, y + 14.5, b, `${MONO};font-size:12px;fill:var(--muted);${HALO}`, anchor) : '');
   const chip = (x, y, s) => { const w = TW(s, 12, true) + 18; return `<rect x="${f1(x - w / 2)}" y="${f1(y - 11)}" width="${f1(w)}" height="22" rx="11" style="fill:var(--surface);stroke:var(--line-3)"/>` + txt(x, y + 4.5, s, `${MONO};font-size:12px`, 'middle'); };
+  const used = new Set();
   const lineSt = style => style === 'trunk' ? ['stroke:var(--muted);stroke-width:5;stroke-linecap:round', 'stroke:var(--surface);stroke-width:1.6;stroke-linecap:round']
     : style === 'wan' ? ['stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-dasharray:6 5'] : style === 'hsrp' ? ['stroke:var(--muted);stroke-width:1.6;stroke-dasharray:3 5'] : ['stroke:var(--muted);stroke-width:2;stroke-linecap:round'];
   /* Én forbindelse mellem to enheder: linje fra kant til kant, tekst ved enderne og evt. et net i midten */
@@ -2420,29 +2441,30 @@ function topoSVG(t){
     const la = [a[0] + u[0] * da + out[0] * 14, a[1] + u[1] * da + out[1] * 14 + (out[1] < 0 ? -4 : 4)];
     const lb = [b[0] - u[0] * db + out[0] * 14, b[1] - u[1] * db + out[1] * 14 + (out[1] < 0 ? -4 : 4)];
     const m = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
-    const sts = lineSt(o.style);
+    const ctype = o.cable || t.cables[o.id] || 'cu'; used.add(ctype);
+    const sts = cableSt(ctype, o.trunk);
     let s = sts.map(st => `<line x1="${f1(p1[0])}" y1="${f1(p1[1])}" x2="${f1(p2[0])}" y2="${f1(p2[1])}" style="${st}"/>`).join('');
-    s += endLbl(la[0], la[1], anchor, o.a1 || '', o.a2 || '') + endLbl(lb[0], lb[1], anchor, o.b1 || '', o.b2 || '');
-    if (o.chip) s += chip(m[0], m[1], o.chip);
-    if (o.mid){ const mo = Math.abs(u[1]) < 0.3 ? [0, 22] : [out[0] * 12, out[1] * 12 + 4]; s += txt(m[0] + mo[0], m[1] + mo[1], o.mid, `font-size:12px;fill:var(--muted);${HALO}`, Math.abs(u[1]) < 0.3 ? 'middle' : anchor); }
+    s += LB(o.id + ':a', endLbl(la[0], la[1], anchor, o.a1 || '', o.a2 || '')) + LB(o.id + ':b', endLbl(lb[0], lb[1], anchor, o.b1 || '', o.b2 || ''));
+    if (o.chip) s += LB(o.id + ':chip', chip(m[0], m[1], o.chip));
+    if (o.mid){ const mo = Math.abs(u[1]) < 0.3 ? [0, 22] : [out[0] * 12, out[1] * 12 + 4]; s += LB(o.id + ':mid', txt(m[0] + mo[0], m[1] + mo[1], o.mid, `font-size:12px;fill:var(--muted);${HALO}`, Math.abs(u[1]) < 0.3 ? 'middle' : anchor)); }
     if (!o.net) return s;
     const pad = 16, x0 = Math.min(p1[0], p2[0]) - pad, y0 = Math.min(p1[1], p2[1]) - pad;
     return `<g data-net="${o.net}" tabindex="0" role="button" aria-label="${esc(o.aria || '')}. Klik for at rette."><rect class="nhit" fill="transparent" x="${f1(x0)}" y="${f1(y0)}" width="${f1(Math.abs(p2[0] - p1[0]) + pad * 2)}" height="${f1(Math.abs(p2[1] - p1[1]) + pad * 2)}" rx="8"/>${s}</g>`;
   };
   const wc = cidr(t.wan.net);
-  g += link('r1', 'wan', { style: 'wan', net: 'wan', aria: `Forbindelsen til ${t.wan.name}`, a1: t.r1.wanIf, a2: shortIp(t.r1.wanIp, wc), b1: t.wan.gw ? `gw ${shortIp(t.wan.gw, wc)}` : '' });
-  g += link('r1', 'sw1', { style: 'trunk', net: 'r1', aria: `Trunk fra ${N('r1')} til ${N('sw1')}`, a1: t.r1.lanIf, b1: t.s1.upIf, mid: '802.1Q trunk' });
+  g += link('r1', 'wan', { id: 'wan', net: 'wan', aria: `Forbindelsen til ${t.wan.name}`, a1: t.r1.wanIf, a2: shortIp(t.r1.wanIp, wc), b1: t.wan.gw ? `gw ${shortIp(t.wan.gw, wc)}` : '' });
+  g += link('r1', 'sw1', { id: 'r1sw1', trunk: true, net: 'r1', aria: `Trunk fra ${N('r1')} til ${N('sw1')}`, a1: t.r1.lanIf, b1: t.s1.upIf, mid: '802.1Q trunk' });
   for (const [k, rk] of [['l3', 'r3'], ['l2', 'r2']]){
     const L = t[k], c = cidr(L.net);
-    g += link('r1', rk, { net: k, aria: `Linket ${N('r1')}–${N(rk)}, ${L.net}`, a1: L.r1If, a2: shortIp(L.r1Ip, c), b1: L.rIf, b2: shortIp(L.rIp, c), chip: L.net });
+    g += link('r1', rk, { id: k, net: k, aria: `Linket ${N('r1')}–${N(rk)}, ${L.net}`, a1: L.r1If, a2: shortIp(L.r1Ip, c), b1: L.rIf, b2: shortIp(L.rIp, c), chip: L.net });
   }
   { // HSRP mellem de to branch-routere
     const a = P.r3, b = P.r2, u = unit(a, b), ea = edgeOf(KIND.r3, u) + 2, eb = edgeOf(KIND.r2, u) + 2, m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     g += `<line x1="${f1(a[0] + u[0] * ea)}" y1="${f1(a[1] + u[1] * ea)}" x2="${f1(b[0] - u[0] * eb)}" y2="${f1(b[1] - u[1] * eb)}" style="${lineSt('hsrp')[0]}"/>`
-      + txt(m[0], m[1] - 8, 'HSRP', `font-size:13.5px;font-weight:600;${HALO}`, 'middle') + txt(m[0], m[1] + 18, 'fælles gateway', `font-size:12px;fill:var(--muted);${HALO}`, 'middle');
+      + LB('hsrp', txt(m[0], m[1] - 8, 'HSRP', `font-size:13.5px;font-weight:600;${HALO}`, 'middle') + txt(m[0], m[1] + 18, 'fælles gateway', `font-size:12px;fill:var(--muted);${HALO}`, 'middle'));
   }
-  for (const [rk, L, sp] of [['r3', t.l3, t.s2.r3If], ['r2', t.l2, t.s2.r2If]]) g += link(rk, 'sw2', { style: 'trunk', net: rk, aria: `Trunk fra ${N(rk)} til ${N('sw2')}`, a1: L.lanIf, b1: sp, mid: 'trunk' });
-  for (const e of t.extra) if (e.link && P[e.link] && e.link !== e.id) g += link(e.id, e.link, { style: e.link === 'wan' ? 'wan' : '', a1: '', b1: '' });
+  for (const [rk, L, sp] of [['r3', t.l3, t.s2.r3If], ['r2', t.l2, t.s2.r2If]]) g += link(rk, 'sw2', { id: rk + 'sw2', trunk: true, net: rk, aria: `Trunk fra ${N(rk)} til ${N('sw2')}`, a1: L.lanIf, b1: sp, mid: 'trunk' });
+  for (const e of t.extra) if (e.link && P[e.link] && e.link !== e.id) g += link(e.id, e.link, { id: 'ex:' + e.id, cable: e.cable, a1: '', b1: '' });
 
   // Switch → VLAN'er
   const list = (vs, top, key, site, capTxt) => {
@@ -2504,7 +2526,7 @@ function topoSVG(t){
     }
     return `<g ${attr} data-drag="${esc(key)}" tabindex="0" role="button" aria-label="${esc(aria)}. Klik for at rette, træk for at flytte." style="cursor:grab">`
       + `<rect class="nhit" fill="transparent" x="${f1(hit[0])}" y="${f1(hit[1])}" width="${f1(hit[2])}" height="${f1(hit[3])}" rx="10"/>`
-      + iconSVG(kind, x, y, col) + lbl + '</g>';
+      + iconSVG(kind, x, y, col) + LB('dev:' + key, lbl) + '</g>';
   };
   g += device('wan', 'data-net="wan"', KIND.wan, 'var(--muted)', t.wan.name || 'Skolens net', t.wan.net, '', `${t.wan.name}, ${t.wan.net}`);
   for (const [k, col] of [['r1', C.hq], ['sw1', C.hq], ['r3', C.br], ['r2', C.br], ['sw2', C.br]]){
@@ -2517,8 +2539,8 @@ function topoSVG(t){
     const [x, y] = P[k], rows = list.filter(v => v.ports);
     if (!rows.length) continue;
     const y0 = y + (isRound(KIND[k]) ? 50 : 80);
-    g += `<g data-net="sw1" style="cursor:pointer">` + txt(x, y0, 'ACCESS-PORTE', `${MONO};font-size:10.5px;letter-spacing:.08em;fill:var(--muted);${HALO}`, 'middle')
-      + rows.map((v, i) => `<text x="${x}" y="${f1(y0 + 17 + i * 16)}" text-anchor="middle" style="${MONO};font-size:12px;${HALO}">${esc(v.ports)}<tspan style="fill:var(--muted)"> → VLAN ${v.vlan}</tspan></text>`).join('') + '</g>';
+    g += LB('ports:' + k, `<g data-net="sw1">` + txt(x, y0, 'ACCESS-PORTE', `${MONO};font-size:10.5px;letter-spacing:.08em;fill:var(--muted);${HALO}`, 'middle')
+      + rows.map((v, i) => `<text x="${x}" y="${f1(y0 + 17 + i * 16)}" text-anchor="middle" style="${MONO};font-size:12px;${HALO}">${esc(v.ports)}<tspan style="fill:var(--muted)"> → VLAN ${v.vlan}</tspan></text>`).join('') + '</g>');
   }
   for (const e of t.extra) g += device(e.id, `data-ext="${esc(e.id)}"`, e.icon, 'var(--accent)', e.name || ICON_NAME[e.icon] || 'Enhed', ICON_NAME[e.icon] || '', e.ip, `${e.name}, ${ICON_NAME[e.icon] || ''}`);
 
@@ -2528,6 +2550,11 @@ function topoSVG(t){
     g += `<g data-txt="${esc(x.id)}" data-drag="${esc(x.id)}" tabindex="0" role="button" aria-label="Tekst: ${esc(x.text)}. Klik for at rette, træk for at flytte." style="cursor:grab">`
       + `<rect class="nhit" fill="transparent" x="${f1(x.x - 8)}" y="${f1(x.y - fs - 4)}" width="${f1(w)}" height="${f1(h)}" rx="6"/>`
       + lines.map((l, i) => txt(x.x, x.y + i * lh, l, `font-size:${fs}px;${x.big ? 'font-weight:700;' : ''}${HALO}`)).join('') + '</g>';
+  }
+  { // Forklaring på kablerne, der er brugt
+    let ly = 54;
+    const leg = [...used].map(c => { const st = cableSt(c, false)[0], r = `<line x1="32" y1="${ly - 4}" x2="52" y2="${ly - 4}" style="${st}"/>` + txt(60, ly, CABLE_NAME[c], 'font-size:12px;fill:var(--muted)'); ly += 17; return r; }).join('');
+    g += LB('legend', leg);
   }
   const claim = `Netværkstopologi: ${N('r1')} forbinder ${t.wan.name || 'skolens net'} med ${siteName(t, 'hq')}-LAN'et via ${N('sw1')} og med ${N('r3')} og ${N('r2')}, som deler gateway i ${siteName(t, 'br')}-VLAN'erne med HSRP.`;
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(claim)}" style="font-family:var(--f-body);fill:var(--fg)">${g}</svg>`;
@@ -2837,12 +2864,12 @@ const setP = (o, p, v) => { const ks = p.split('.'); let a = o; for (let i = 0; 
 function netSections(t){
   const N = k => devName(t, k);
   return [
-    { key: 'wan', h: t.wan.name || 'Skolens net', f: [['wan.icon', 'Ikon', '', 'icon'], ['wan.name', 'Navn'], ['wan.net', 'Netværk', '10.233.192.0/24'], ['wan.gw', 'Gateway', '10.233.192.1'], ['r1.wanIf', `Interface på ${N('r1')}`, 'G0/1/3'], ['r1.wanIp', `IP på ${N('r1')}`, '10.233.192.67']] },
-    { key: 'r1', h: `${N('r1')} · ${t.dev.r1.role || 'router'}`, f: [['dev.r1.icon', 'Ikon', '', 'icon'], ['dev.r1.name', 'Navn'], ['dev.r1.role', 'Rolle'], ['r1.lanIf', `Interface mod ${N('sw1')} (trunk)`, 'G0/0']] },
-    { key: 'l3', h: `Link ${N('r1')} – ${N('r3')}`, f: [['l3.net', 'Netværk', '172.16.67.0/30'], ['l3.r1If', `Interface på ${N('r1')}`], ['l3.r1Ip', `IP på ${N('r1')}`], ['l3.rIf', `Interface på ${N('r3')}`], ['l3.rIp', `IP på ${N('r3')}`]] },
-    { key: 'l2', h: `Link ${N('r1')} – ${N('r2')}`, f: [['l2.net', 'Netværk', '172.16.67.4/30'], ['l2.r1If', `Interface på ${N('r1')}`], ['l2.r1Ip', `IP på ${N('r1')}`], ['l2.rIf', `Interface på ${N('r2')}`], ['l2.rIp', `IP på ${N('r2')}`]] },
-    { key: 'r3', h: `${N('r3')} · ${t.dev.r3.role || 'router'}`, f: [['dev.r3.icon', 'Ikon', '', 'icon'], ['dev.r3.name', 'Navn'], ['dev.r3.role', 'Rolle'], ['l3.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0']] },
-    { key: 'r2', h: `${N('r2')} · ${t.dev.r2.role || 'router'}`, f: [['dev.r2.icon', 'Ikon', '', 'icon'], ['dev.r2.name', 'Navn'], ['dev.r2.role', 'Rolle'], ['l2.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0']] },
+    { key: 'wan', h: t.wan.name || 'Skolens net', f: [['wan.icon', 'Ikon', '', 'icon'], ['wan.name', 'Navn'], ['wan.net', 'Netværk', '10.233.192.0/24'], ['wan.gw', 'Gateway', '10.233.192.1'], ['r1.wanIf', `Interface på ${N('r1')}`, 'G0/1/3'], ['r1.wanIp', `IP på ${N('r1')}`, '10.233.192.67'], ['cables.wan', 'Kabeltype', '', 'cable']] },
+    { key: 'r1', h: `${N('r1')} · ${t.dev.r1.role || 'router'}`, f: [['dev.r1.icon', 'Ikon', '', 'icon'], ['dev.r1.name', 'Navn'], ['dev.r1.role', 'Rolle'], ['r1.lanIf', `Interface mod ${N('sw1')} (trunk)`, 'G0/0'], ['cables.r1sw1', `Kabel til ${N('sw1')}`, '', 'cable']] },
+    { key: 'l3', h: `Link ${N('r1')} – ${N('r3')}`, f: [['l3.net', 'Netværk', '172.16.67.0/30'], ['l3.r1If', `Interface på ${N('r1')}`], ['l3.r1Ip', `IP på ${N('r1')}`], ['l3.rIf', `Interface på ${N('r3')}`], ['l3.rIp', `IP på ${N('r3')}`], ['cables.l3', 'Kabeltype', '', 'cable']] },
+    { key: 'l2', h: `Link ${N('r1')} – ${N('r2')}`, f: [['l2.net', 'Netværk', '172.16.67.4/30'], ['l2.r1If', `Interface på ${N('r1')}`], ['l2.r1Ip', `IP på ${N('r1')}`], ['l2.rIf', `Interface på ${N('r2')}`], ['l2.rIp', `IP på ${N('r2')}`], ['cables.l2', 'Kabeltype', '', 'cable']] },
+    { key: 'r3', h: `${N('r3')} · ${t.dev.r3.role || 'router'}`, f: [['dev.r3.icon', 'Ikon', '', 'icon'], ['dev.r3.name', 'Navn'], ['dev.r3.role', 'Rolle'], ['l3.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0'], ['cables.r3sw2', `Kabel til ${N('sw2')}`, '', 'cable']] },
+    { key: 'r2', h: `${N('r2')} · ${t.dev.r2.role || 'router'}`, f: [['dev.r2.icon', 'Ikon', '', 'icon'], ['dev.r2.name', 'Navn'], ['dev.r2.role', 'Rolle'], ['l2.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0'], ['cables.r2sw2', `Kabel til ${N('sw2')}`, '', 'cable']] },
     { key: 'sw1', h: 'Switche', f: [['dev.sw1.icon', 'Ikon for HQ-switchen', '', 'icon'], ['dev.sw1.name', 'Navn på HQ-switchen'], ['dev.sw1.role', 'Sted (vises som HQ)'], ['s1.upIf', `Port på ${N('sw1')} mod ${N('r1')} (trunk)`, 'G0/1'], ['dev.sw2.icon', 'Ikon for branch-switchen', '', 'icon'], ['dev.sw2.name', 'Navn på branch-switchen'], ['dev.sw2.role', 'Sted (vises som Branch)'], ['s2.r3If', `Port på ${N('sw2')} mod ${N('r3')} (trunk)`, 'G0/1'], ['s2.r2If', `Port på ${N('sw2')} mod ${N('r2')} (trunk)`, 'G0/2']] },
     { key: 'notes', h: 'Noter', f: [['notes', 'Vises under topologien (fx routing)', '', 'area']] }
   ];
@@ -2854,12 +2881,13 @@ function openNet(focus){
   let n = 0;
   $('nt-body').innerHTML = sections.map(s => `<section class="npsec" data-sec="${s.key}"><h3>${esc(s.h)}</h3>${s.f.some(f => f[3] === 'area') ? '' : '<div class="grid2">'}${s.f.map(([p, lab, ph, kind]) => {
     const id = 'nf-' + (n++), val = getP(t, p) ?? '';
+    if (kind === 'cable') return `<div class="field"><label for="${id}">${esc(lab)}</label><select id="${id}" data-k="${p}"${readOnly ? ' disabled' : ''}>${CABLES.map(([k, n]) => `<option value="${k}"${(val || 'cu') === k ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`;
     if (kind === 'icon') return `<div class="field" style="grid-column:1/-1"><span class="lbl">${esc(lab)}</span><div class="ipick"><input type="hidden" data-k="${p}" value="${esc(val)}">${iconPickHTML(val)}</div></div>`;
     return kind === 'area'
       ? `<div class="field"><label for="${id}">${esc(lab)}</label><textarea id="${id}" data-k="${p}" maxlength="600"${readOnly ? ' disabled' : ''}>${esc(val)}</textarea></div>`
       : `<div class="field"><label for="${id}">${esc(lab)}</label><input id="${id}" data-k="${p}" value="${esc(val)}" maxlength="40" autocomplete="off" spellcheck="false"${ph ? ` placeholder="${esc(ph)}"` : ''}${readOnly ? ' disabled' : ''}></div>`;
   }).join('')}${s.f.some(f => f[3] === 'area') ? '' : '</div>'}</section>`).join('');
-  if (Object.keys(t.pos).length && !readOnly) $('nt-body').insertAdjacentHTML('afterbegin', '<p><button type="button" class="linkbtn" id="nt-repos">↺ Sæt enhederne tilbage på deres oprindelige pladser</button></p>');
+  if ((Object.keys(t.pos).length || Object.keys(t.loff).length) && !readOnly) $('nt-body').insertAdjacentHTML('afterbegin', '<p><button type="button" class="linkbtn" id="nt-repos">↺ Sæt enheder og tekster tilbage på deres oprindelige pladser</button></p>');
   $('nt-save').hidden = readOnly; $('nt-reset').hidden = readOnly || !topoDoc;
   $('nt-reset').classList.remove('armed'); $('nt-reset').textContent = 'Nulstil til skabelonen';
   showPanel('npanel');
@@ -2873,7 +2901,7 @@ function openNet(focus){
 $('nt-cancel').onclick = closePanels;
 $('nt-body').addEventListener('click', e => {
   if (!e.target.closest('#nt-repos')) return;
-  const next = topoNow(); next.pos = {};
+  const next = topoNow(); next.pos = {}; next.loff = {};
   closePanels(); saveTopo(next, 'Enhederne er sat tilbage på plads');
 });
 $('nform').addEventListener('submit', e => {
@@ -2909,6 +2937,13 @@ let tdrag = null, tdragEnd = 0;
 const svgPt = (svg, e) => { const m = svg && svg.getScreenCTM(); if (!m) return null; const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()); return [p.x, p.y]; };
 topoEl.addEventListener('pointerdown', e => {
   if (e.button !== 0 || readOnly || tdrag) return;
+  const lb = e.target.closest('[data-lbl]');
+  if (lb){
+    const t = topoNow(), id = lb.dataset.lbl, p = svgPt(lb.ownerSVGElement, e); if (!p) return;
+    const start = t.loff[id] || [0, 0];
+    tdrag = { key: id, lbl: true, pid: e.pointerId, x0: e.clientX, y0: e.clientY, off: [start[0] - p[0], start[1] - p[1]], moved: false, t };
+    e.preventDefault(); e.stopPropagation(); return;
+  }
   const g = e.target.closest('[data-drag]'); if (!g) return;
   const key = g.dataset.drag, t = topoNow();
   const ex = t.extra.find(x => x.id === key) || t.texts.find(x => x.id === key);
@@ -2921,6 +2956,7 @@ window.addEventListener('pointermove', e => {
   const d = tdrag; if (!d || e.pointerId !== d.pid) return;
   if (!d.moved){ if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 5) return; d.moved = true; document.body.classList.add('kgrabbing'); hideTip(); }
   const p = svgPt($('topoSvg').querySelector('svg'), e); if (!p) return;
+  if (d.lbl){ d.t.loff[d.key] = [Math.round(Math.max(-900, Math.min(900, p[0] + d.off[0]))), Math.round(Math.max(-900, Math.min(900, p[1] + d.off[1])))]; $('topoSvg').innerHTML = topoSVG(d.t); return; }
   const txo = d.t.texts.find(z => z.id === d.key), lo = txo ? 20 : 60, hi = txo ? 1180 : 640;
   const x = Math.round(Math.max(lo, Math.min(hi, p[0] + d.off[0]))), y = Math.round(Math.max(lo, Math.min(1400, p[1] + d.off[1])));
   const ex = d.t.extra.find(z => z.id === d.key) || txo;
@@ -2932,7 +2968,7 @@ function endTopoDrag(e, save){
   tdrag = null; document.body.classList.remove('kgrabbing');
   if (!d.moved) return;
   tdragEnd = Date.now();
-  if (save) saveTopo(d.t, d.key[0] === 'x' ? 'Teksten er flyttet' : 'Enheden er flyttet'); else renderTopo();
+  if (save) saveTopo(d.t, d.lbl ? 'Teksten er flyttet' : d.key[0] === 'x' ? 'Teksten er flyttet' : 'Enheden er flyttet'); else renderTopo();
 }
 window.addEventListener('pointerup', e => endTopoDrag(e, true));
 window.addEventListener('pointercancel', e => endTopoDrag(e, false));
@@ -2944,13 +2980,14 @@ function openExtra(id){
   const e = id ? t.extra.find(x => x.id === id) : null;
   if (id && !e) return;
   const n = t.extra.length;
-  edraft = e ? { ...e } : { id: 'e' + Date.now().toString(36), icon: 'server', name: '', ip: '', link: 'sw2', x: 120 + (n % 5) * 110, y: 730 + Math.floor(n / 5) * 120, isNew: true };
+  edraft = e ? { ...e } : { id: 'e' + Date.now().toString(36), icon: 'server', name: '', ip: '', link: 'sw2', cable: 'cu', x: 120 + (n % 5) * 110, y: 730 + Math.floor(n / 5) * 120, isNew: true };
   $('ed-title').textContent = e ? (e.name || ICON_NAME[e.icon] || 'Enhed') : 'Ny enhed';
   $('ed-icons').innerHTML = iconPickHTML(edraft.icon);
   $('ed-name').value = edraft.name; $('ed-ip').value = edraft.ip;
   const opts = [['', 'Ingen forbindelse'], ['wan', t.wan.name || 'Skolens net'], ...['r1', 'sw1', 'r3', 'r2', 'sw2'].map(k => [k, devName(t, k)]), ...t.extra.filter(x => x.id !== edraft.id).map(x => [x.id, x.name || ICON_NAME[x.icon]])];
   $('ed-link').innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
   $('ed-link').value = opts.some(o => o[0] === edraft.link) ? edraft.link : '';
+  $('ed-cable').innerHTML = CABLES.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join(''); $('ed-cable').value = edraft.cable || 'cu';
   $('eform').querySelectorAll('input, select').forEach(x => x.disabled = readOnly);
   $('ed-save').hidden = readOnly; $('ed-del').hidden = !e || readOnly; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Slet';
   $('ed-err').hidden = true;
@@ -2973,7 +3010,7 @@ $('eform').addEventListener('submit', e => {
   const ip = $('ed-ip').value.trim();
   if (ip && ip2n(ip) == null){ $('ed-err').textContent = `“${ip}” er ikke en gyldig IP-adresse.`; $('ed-err').hidden = false; return; }
   const next = topoNow();
-  const ne = { id: edraft.id, icon: edraft.icon, name: $('ed-name').value.trim(), ip, link: $('ed-link').value, x: edraft.x, y: edraft.y };
+  const ne = { id: edraft.id, icon: edraft.icon, name: $('ed-name').value.trim(), ip, link: $('ed-link').value, cable: $('ed-cable').value, x: edraft.x, y: edraft.y };
   const i = next.extra.findIndex(x => x.id === ne.id);
   if (i >= 0){ ne.x = next.extra[i].x; ne.y = next.extra[i].y; next.extra[i] = ne; } else next.extra.push(ne);
   closePanels();
@@ -3053,7 +3090,7 @@ document.addEventListener('keydown', e => {
 const HELP = {
   gantt: 'Træk en bjælke for at flytte den en halv time ad gangen · træk i højre kant for at ændre længden · træk i overemnets mørke streg for at flytte alle dets opgaver · klik på en tom plads i et overemne for at tilføje en opgave dér',
   board: 'Træk et kort eller en enkelt opgave til en anden kolonne for at ændre status · træk en opgave op eller ned for at ændre rækkefølgen · klik på boblen for at vælge status · klik på en opgave for at redigere',
-  topo: 'Klik på et VLAN, en enhed eller et link for at rette det · tabellerne kan kopieres direkte ind i rapporten · “Download billede” giver topologien som PNG'
+  topo: 'Klik på et VLAN, en enhed eller et link for at rette det (også kabeltypen) · træk i en tekst for at flytte den · tabellerne kan kopieres direkte ind i rapporten · “Download billede” giver topologien som PNG'
 };
 function setView(v){
   closeStatusMenu(); hideTip();
