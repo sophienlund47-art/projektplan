@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="5">
+<meta name="app-version" content="6">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -415,11 +415,14 @@ body.kgrabbing{user-select:none;-webkit-user-select:none}
 .tsvg [data-txt]{outline:none}
 .tsvg [data-txt]:hover .nhit{fill:var(--hover)}
 .tsvg [data-txt]:focus-visible .nhit{stroke:var(--accent);stroke-width:2}
-.ttable .anote,.ttable .arow-in{width:100%;min-width:130px;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 7px;font:inherit;font-size:12.5px;color:var(--fg)}
-.ttable .arow-in.mono{font-family:var(--f-mono)}
-.ttable .anote:hover,.ttable .arow-in:hover{border-color:var(--line-3)}
-.ttable .anote:focus,.ttable .arow-in:focus{border-color:var(--accent);background:var(--surface);outline:none}
-.ttable .anote::placeholder,.ttable .arow-in::placeholder{color:var(--line-3)}
+.ttable .acell,.ttable .arow-in{width:100%;min-width:90px;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 7px;font:inherit;font-size:12.5px;color:var(--fg)}
+.ttable .arow-in.mono,.ttable .acell.mono{font-family:var(--f-mono)}
+.ttable .acell{padding:3px 6px}
+.ttable .acell.edited{background:color-mix(in srgb,var(--goal) 70%,transparent)}
+.ttable td:has(> .acell){padding:3px 4px}
+.ttable .acell:hover,.ttable .arow-in:hover{border-color:var(--line-3)}
+.ttable .acell:focus,.ttable .arow-in:focus{border-color:var(--accent);background:var(--surface);outline:none}
+.ttable .acell::placeholder,.ttable .arow-in::placeholder{color:var(--line-3)}
 #undoBtn:disabled:hover{border-color:var(--line-3)}
 .dropzone{position:fixed;inset:12px;border:2px dashed var(--accent);border-radius:16px;background:color-mix(in srgb,var(--surface) 90%,transparent);z-index:40;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font:600 clamp(16px,2.4vw,22px) var(--f-display);pointer-events:none}
 
@@ -531,13 +534,13 @@ label.btn{display:inline-flex;align-items:center}
       </figure>
     </div>
     <div class="tcard">
-      <div class="tsec-h"><h3>IP-plan</h3><span class="note">Sorteret efter adresse. Klik på en række for at rette den.</span><button class="btn" id="tCopyPlan" type="button">Kopiér tabel</button></div>
+      <div class="tsec-h"><h3>Subnetting</h3><span class="note">Subnetberegning, sorteret efter adresse. Klik på en række for at rette den.</span><button class="btn" id="tCopyPlan" type="button">Kopiér tabel</button></div>
       <div id="topoMap"></div>
       <div class="twrap"><table class="ttable" id="topoPlan"></table></div>
       <div class="tchecks" id="topoChecks"></div>
     </div>
     <div class="tcard">
-      <div class="tsec-h"><h3>Adresser pr. enhed</h3><span class="note">Interfaces og IP-adresser til konfigurationen og rapporten.</span><button class="btn" id="tAddRow" type="button">+ Tilføj række</button><button class="btn" id="tCopyAddr" type="button">Kopiér tabel</button></div>
+      <div class="tsec-h"><h3>IP-plan</h3><span class="note">Interfaces, porte og IP-adresser pr. enhed. Klik i en celle for at rette teksten.</span><button class="btn" id="tAddRow" type="button">+ Tilføj række</button><button class="btn" id="tCopyAddr" type="button">Kopiér tabel</button></div>
       <div class="twrap"><table class="ttable" id="topoAddr"></table></div>
     </div>
   </section>
@@ -726,7 +729,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 5 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 6 · 30. september 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -739,7 +742,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 5</p>
+    <p class="gate-ver">Version 6</p>
   </div>
 </div>
 
@@ -2218,7 +2221,7 @@ const TOPO_DEFAULT = {
   wan: { name: 'Skolens net', net: '10.233.192.0/24', gw: '10.233.192.1', icon: 'cloud' },
   dev: { r1: { name: 'R1', role: 'HQ', icon: 'router' }, r2: { name: 'R2', role: 'Branch', icon: 'router' }, r3: { name: 'R3', role: 'Branch', icon: 'router' }, sw1: { name: 'SW1', role: 'HQ', icon: 'switch' }, sw2: { name: 'SW2', role: 'Branch', icon: 'switch' } },
   s1: { upIf: 'G0/1' }, s2: { r3If: 'G0/1', r2If: 'G0/2' },
-  pos: {}, extra: [], texts: [], anotes: {}, arows: [],
+  pos: {}, extra: [], texts: [], aedit: {}, arows: [],
   r1: { wanIf: 'G0/1/3', wanIp: '10.233.192.67', lanIf: 'G0/0' },
   l3: { net: '172.16.67.0/30', r1If: 'G0/1', r1Ip: '172.16.67.1', rIf: 'G0/1', rIp: '172.16.67.2', lanIf: 'G0/0' },
   l2: { net: '172.16.67.4/30', r1If: 'G0/1/0', r1Ip: '172.16.67.5', rIf: 'G0/1', rIp: '172.16.67.6', lanIf: 'G0/0' },
@@ -2250,7 +2253,7 @@ function normTopo(d){
     name: str(v.name, '', 40),
     need: Number.isFinite(+v.need) && +v.need > 0 ? Math.min(1e6, Math.round(+v.need)) : 0,
     net: str(v.net, '', 20), gw: str(v.gw, '', 20), r2: str(v.r2, '', 20), r3: str(v.r3, '', 20),
-    act: v.act === 'r2' || v.act === 'r3' ? v.act : '', ports: str(v.ports, '', 30),
+    act: v.act === 'r2' || v.act === 'r3' ? v.act : '', ports: typeof v.ports === 'string' ? v.ports.trim().slice(0, 30) : ((D.vlans.find(d => d.id === v.id && d.vlan === +v.vlan) || {}).ports || ''),
     hosts: (Array.isArray(v.hosts) ? v.hosts : []).filter(h => h && typeof h === 'object').slice(0, 12).map(h => ({ name: str(h.name, '', 30), ip: str(h.ip, '', 20) }))
   }));
   const seen = new Set(); for (const v of vlans){ while (seen.has(v.id)) v.id += 'x'; seen.add(v.id); }
@@ -2267,11 +2270,11 @@ function normTopo(d){
   const texts = (Array.isArray(o.texts) ? o.texts : []).filter(x => x && typeof x === 'object' && typeof x.text === 'string').slice(0, 40).map((x, i) => ({
     id: typeof x.id === 'string' && /^x[\w-]{1,40}$/.test(x.id) ? x.id : 'x' + i, text: x.text.slice(0, 300),
     x: Math.round(Math.max(20, Math.min(1180, +x.x || 60))), y: Math.round(Math.max(20, Math.min(1400, +x.y || 60))), big: !!x.big }));
-  const anotes = {};
-  if (o.anotes && typeof o.anotes === 'object') for (const [k, v] of Object.entries(o.anotes).slice(0, 300)) if (typeof v === 'string' && v.trim()) anotes[String(k).slice(0, 100)] = v.slice(0, 160);
+  const aedit = {};
+  if (o.aedit && typeof o.aedit === 'object') for (const [k, v] of Object.entries(o.aedit).slice(0, 600)) if (typeof v === 'string') aedit[String(k).slice(0, 120)] = v.slice(0, 160);
   const arows = (Array.isArray(o.arows) ? o.arows : []).filter(r => r && typeof r === 'object').slice(0, 60).map((r, i) => ({
     id: typeof r.id === 'string' && /^a[\w-]{1,40}$/.test(r.id) ? r.id : 'a' + i, dev: str(r.dev, '', 40), ifc: str(r.ifc, '', 40), ip: str(r.ip, '', 40), mask: str(r.mask, '', 40), note: str(r.note, '', 160) }));
-  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, anotes, arows, notes: str(o.notes, D.notes, 600) };
+  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, notes: str(o.notes, D.notes, 600) };
 }
 const topoNow = () => normTopo(topoDoc || TOPO_DEFAULT);
 const devName = (t, k) => t.dev[k].name || k.toUpperCase();
@@ -2389,7 +2392,7 @@ function topoSVG(t){
   const Y1 = P.sw1[1], YS2 = P.sw2[1];
   const hqTop = Math.max(24, Math.round(230 - rowsH(hq) / 2 - CAP)), hqEnd = hqTop + CAP + rowsH(hq);
   const brTop = Math.max(hqEnd + 34, Math.round(582 - rowsH(br) / 2 - CAP)), brEnd = brTop + CAP + rowsH(br);
-  const maxY = Math.max(...Object.values(P).map(p => p[1]), ...t.texts.map(x => x.y + 20 * x.text.split('\n').length));
+  const maxY = Math.max(...Object.values(P).map(p => p[1]), ...t.texts.map(x => x.y + 20 * x.text.split('\n').length), P.sw1[1] + 60 + 16 * hq.length, P.sw2[1] + 60 + 16 * br.length);
   const W = 1200, H = Math.max(brEnd, maxY + 72, 654) + 24;
   const N = k => devName(t, k);
   const txt = (x, y, s, st, anchor) => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${anchor ? ` text-anchor="${anchor}"` : ''} style="${st || ''}">${esc(s)}</text>`;
@@ -2470,7 +2473,6 @@ function topoSVG(t){
         + txt(RX + 66, cy - 4, v.name || 'Uden navn', 'font-size:14.5px;font-weight:600')
         + txt(RE, cy - 4, v.net, `${MONO};font-size:13.5px`, 'end')
         + txt(RX + 66, cy + 15, info, `${MONO};font-size:12.5px;fill:var(--muted)`)
-        + (v.ports ? txt(RE - 70, cy + 14, v.ports, `${MONO};font-size:12px;${HALO}`, 'end') : '')
         + txt(RE, cy + 14, c ? (v.need ? `${v.need} af ${c.size}` : `${c.size} adr.`) : '', 'font-size:12.5px;fill:var(--muted)', 'end')
         + hosts + '</g>';
       y += RH + hh;
@@ -2509,6 +2511,14 @@ function topoSVG(t){
     const kind = KIND[k], role = t.dev[k].role || '';
     const sub = k[0] === 's' && kind === 'switch' ? (role ? role + '-switch' : 'switch') : role;
     g += device(k, `data-net="${k}"`, kind, col, N(k), sub, '', `${N(k)}, ${ICON_NAME[kind] || ''}, ${role}`);
+  }
+  // Access-porte fra switchen ud til HQ og Branch, skrevet under switchen
+  for (const [k, list] of [['sw1', hq], ['sw2', br]]){
+    const [x, y] = P[k], rows = list.filter(v => v.ports);
+    if (!rows.length) continue;
+    const y0 = y + (isRound(KIND[k]) ? 50 : 80);
+    g += `<g data-net="sw1" style="cursor:pointer">` + txt(x, y0, 'ACCESS-PORTE', `${MONO};font-size:10.5px;letter-spacing:.08em;fill:var(--muted);${HALO}`, 'middle')
+      + rows.map((v, i) => `<text x="${x}" y="${f1(y0 + 17 + i * 16)}" text-anchor="middle" style="${MONO};font-size:12px;${HALO}">${esc(v.ports)}<tspan style="fill:var(--muted)"> → VLAN ${v.vlan}</tspan></text>`).join('') + '</g>';
   }
   for (const e of t.extra) g += device(e.id, `data-ext="${esc(e.id)}"`, e.icon, 'var(--accent)', e.name || ICON_NAME[e.icon] || 'Enhed', ICON_NAME[e.icon] || '', e.ip, `${e.name}, ${ICON_NAME[e.icon] || ''}`);
 
@@ -2570,7 +2580,7 @@ function planHTML(t, checks){
   }
   return h + '</tbody>';
 }
-/* Adresser pr. enhed: interfaces og IP'er til konfigurationen */
+/* IP-plan: interfaces og IP'er pr. enhed til konfigurationen */
 function addrHTML(t){
   const byV = (a, b) => a.vlan - b.vlan;
   const hq = t.vlans.filter(v => v.site === 'hq').sort(byV), br = t.vlans.filter(v => v.site === 'br').sort(byV);
@@ -2595,11 +2605,13 @@ function addrHTML(t){
   for (const e of t.extra) if (e.ip) hosts.push([e.name || ICON_NAME[e.icon], [['NIC', e.ip, '', ICON_NAME[e.icon] || '']], '', ip2n(e.ip) || 0]);
   hosts.sort((a, b) => a[3] - b[3]);
   const ro = readOnly ? ' disabled' : '';
-  const noteIn = key => `<input class="anote" data-akey="${esc(key)}" value="${esc(t.anotes[key] || '')}" maxlength="160" placeholder="${readOnly ? '' : 'Skriv note…'}" aria-label="Egen note"${ro}>`;
-  let h = `<thead><tr><th>Enhed</th><th>Interface</th><th>IP-adresse</th><th>Maske</th><th>Bruges til</th><th>Egne noter</th></tr></thead><tbody>`;
+  // Hver celle kan rettes. Ændringer gemmes som "rettelser" oven på det, appen selv regner ud.
+  const cell = (key, col, val, mono) => { const k = key + '|' + col, v = k in t.aedit ? t.aedit[k] : val;
+    return `<td${mono ? ' class="m"' : ''}><input class="acell${mono ? ' mono' : ''}${k in t.aedit ? ' edited' : ''}" data-akey="${esc(k)}" data-orig="${esc(val)}" value="${esc(v)}" maxlength="160" style="min-width:${Math.min(64, String(v).length + 3)}${mono ? 'ch' : 'ex'}" aria-label="${['Interface', 'IP-adresse', 'Maske', 'Bruges til'][col]}"${k in t.aedit ? ' title="Rettet i hånden. Slet teksten for at få den oprindelige tilbage."' : ''}${ro}></td>`; };
+  let h = `<thead><tr><th>Enhed</th><th>Interface</th><th>IP-adresse</th><th>Maske</th><th>Bruges til</th><th></th></tr></thead><tbody>`;
   for (const [dev, rows, site] of [...groups, ...hosts]){
     const list = rows.filter(r => r[0] || r[1]);
-    list.forEach((r, i) => { h += `<tr>${i === 0 ? `<td rowspan="${list.length}" style="font-weight:600;vertical-align:top">${esc(dev)}${site ? ` <small style="font-weight:400;color:var(--muted)">${esc(site)}</small>` : ''}</td>` : ''}<td class="m">${esc(r[0])}</td><td class="m">${esc(r[1])}</td><td class="m mu">${esc(r[2])}</td><td class="mu">${esc(r[3])}</td><td>${noteIn(dev + '|' + r[0])}</td></tr>`; });
+    list.forEach((r, i) => { h += `<tr>${i === 0 ? `<td rowspan="${list.length}" style="font-weight:600;vertical-align:top">${esc(dev)}${site ? ` <small style="font-weight:400;color:var(--muted)">${esc(site)}</small>` : ''}</td>` : ''}${[0, 1, 2, 3].map(c => cell(dev + '|' + r[0], c, r[c] || '', c < 3)).join('')}<td></td></tr>`; });
   }
   if (t.arows.length){
     h += `<tr class="grp"><td colspan="6">Egne rækker</td></tr>`;
@@ -2609,7 +2621,7 @@ function addrHTML(t){
   return h + '</tbody>';
 }
 function checksHTML(list){
-  if (!list.length) return `<div class="ok">✓ Ingen overlap eller fejl i IP-planen.</div>`;
+  if (!list.length) return `<div class="ok">✓ Ingen overlap eller fejl i subnettene.</div>`;
   return list.map(x => `<div class="bad">! ${x.id ? `<button type="button" data-vlan="${esc(x.id)}">${esc(x.msg)}</button>` : x.net ? `<button type="button" data-net="${esc(x.net)}">${esc(x.msg)}</button>` : esc(x.msg)}</div>`).join('');
 }
 function fitMapLabels(){ topoEl.querySelectorAll('.amap-seg').forEach(s => { s.classList.remove('nolabel'); if (s.scrollWidth > s.clientWidth) s.classList.add('nolabel'); }); }
@@ -3002,11 +3014,11 @@ $('xform').addEventListener('submit', e => {
   closePanels(); saveTopo(next, i >= 0 ? 'Teksten er gemt' : 'Teksten er tilføjet. Træk den derhen, hvor den skal stå.');
 });
 
-/* Egne noter og rækker i "Adresser pr. enhed" (gemmes, når man forlader feltet) */
+/* Rettelser og egne rækker i IP-planen (gemmes, når man trykker Enter eller forlader feltet) */
 $('topoAddr').addEventListener('change', e => {
   if (readOnly) return;
   const next = topoNow();
-  if (e.target.matches('.anote')){ const k = e.target.dataset.akey, v = e.target.value.trim(); if (v) next.anotes[k] = v; else delete next.anotes[k]; saveTopo(next, 'Noten er gemt'); return; }
+  if (e.target.matches('.acell')){ const k = e.target.dataset.akey, v = e.target.value.trim(); if (!v || v === e.target.dataset.orig) delete next.aedit[k]; else next.aedit[k] = v; saveTopo(next, v && v !== e.target.dataset.orig ? 'Rettelsen er gemt' : 'Den oprindelige tekst er sat tilbage'); return; }
   const tr = e.target.closest('[data-arow]');
   if (tr && e.target.matches('.arow-in')){ const r = next.arows.find(z => z.id === tr.dataset.arow); if (!r) return; r[e.target.dataset.f] = e.target.value.trim(); saveTopo(next, 'Rækken er gemt'); }
 });
