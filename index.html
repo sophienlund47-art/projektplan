@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="3">
+<meta name="app-version" content="4">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -402,6 +402,17 @@ body.kgrabbing{user-select:none;-webkit-user-select:none}
 .hostrow input{border:1px solid var(--line-3);background:var(--surface-2);border-radius:8px;padding:7px 9px;min-width:0;width:100%}
 .netinfo{font:400 12px var(--f-mono);color:var(--muted);margin:-4px 0 0}
 .netinfo.bad{color:var(--dead-ink);font-family:var(--f-body)}
+.tsvg [data-drag]{touch-action:none}
+.tsvg [data-ext]{cursor:grab;outline:none}
+.tsvg [data-ext]:hover .nhit{fill:var(--hover)}
+.tsvg [data-ext]:focus-visible .nhit{stroke:var(--accent);stroke-width:2}
+.ipick{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:6px}
+.ipick button{display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid var(--line-3);background:var(--surface);border-radius:8px;padding:6px 4px 5px;cursor:pointer;font-size:11.5px;color:var(--muted)}
+.ipick button:hover{border-color:var(--fg);color:var(--fg)}
+.ipick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--fg);background:var(--hover)}
+.ipick svg{width:56px;height:34px;color:var(--fg)}
+#undoBtn:disabled{opacity:.45;cursor:default}
+#undoBtn:disabled:hover{border-color:var(--line-3)}
 .dropzone{position:fixed;inset:12px;border:2px dashed var(--accent);border-radius:16px;background:color-mix(in srgb,var(--surface) 90%,transparent);z-index:40;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font:600 clamp(16px,2.4vw,22px) var(--f-display);pointer-events:none}
 
 @media (max-width:700px){
@@ -479,6 +490,7 @@ label.btn{display:inline-flex;align-items:center}
       <div class="chips" id="chips"></div>
     </div>
     <div class="strip-r">
+      <button class="btn" id="undoBtn" type="button" disabled title="Intet at fortryde endnu (Ctrl+Z)">↶ Fortryd</button>
       <span class="sync" id="syncinfo"></span>
       <div class="gtools" id="ganttTools">
         <div class="seg" role="group" aria-label="Zoom">
@@ -489,6 +501,7 @@ label.btn{display:inline-flex;align-items:center}
       </div>
       <div class="gtools" id="topoTools" hidden>
         <button class="btn" id="tAddVlan" type="button">+ VLAN</button>
+        <button class="btn" id="tAddDev" type="button">+ Enhed</button>
         <button class="btn" id="tEditNet" type="button">Enheder og links</button>
         <button class="btn" id="tPng" type="button">Download billede</button>
       </div>
@@ -638,6 +651,24 @@ label.btn{display:inline-flex;align-items:center}
   </form>
 </aside>
 
+<aside class="panel" id="epanel" hidden role="dialog" aria-labelledby="ed-title">
+  <h2 id="ed-title">Ny enhed</h2>
+  <form id="eform" novalidate>
+    <div class="field"><span class="lbl">Ikon</span><div class="ipick" id="ed-icons"></div></div>
+    <div class="grid2">
+      <div class="field"><label for="ed-name">Navn</label><input id="ed-name" maxlength="30" autocomplete="off" placeholder="Fx DC3"></div>
+      <div class="field"><label for="ed-ip">IP-adresse</label><input id="ed-ip" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Valgfri"></div>
+    </div>
+    <div class="field"><label for="ed-link">Forbundet til</label><select id="ed-link"></select></div>
+    <p class="note">Træk enheden rundt i tegningen for at flytte den.</p>
+    <div class="err" id="ed-err" hidden></div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="ed-del">Slet</button>
+      <div><button type="button" class="btn" id="ed-cancel">Annuller</button><button type="submit" class="btn primary" id="ed-save">Gem</button></div>
+    </div>
+  </form>
+</aside>
+
 <div class="ttip" id="ttip" hidden></div>
 <aside class="panel" id="ppanel" hidden role="dialog" aria-labelledby="pp-title">
   <h2 id="pp-title">Projekt</h2>
@@ -672,7 +703,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 3 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 4 · 30. september 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -685,7 +716,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 3</p>
+    <p class="gate-ver">Version 4</p>
   </div>
 </div>
 
@@ -866,10 +897,23 @@ let slots = [], slotIndex = new Map(), days = [], W = 0, occ = new Map(), M = { 
 const scroller = $('scroller');
 
 const boardEl = $('board');
+/* Fortryd: alt, der kan fortrydes, lægges også på en stak, så knappen "Fortryd" og Ctrl+Z virker bagefter */
+const undoStack = [];
+function updUndo(){ const b = $('undoBtn'), u = undoStack[undoStack.length - 1]; b.disabled = !u; b.title = u ? `Fortryd: ${u.msg} (Ctrl+Z)` : 'Intet at fortryde endnu (Ctrl+Z)'; }
+async function runUndo(){
+  const u = undoStack.pop(); updUndo(); if (!u) return;
+  $('toast').hidden = true;
+  try { await u.fn(); toast(`Fortrudt: ${u.msg}`); } catch(err){ toast('Kunne ikke fortryde.'); }
+}
 function toast(msg, action){
   const t = $('toast'), b = $('toastAct');
   $('toastMsg').textContent = msg;
-  if (action){ b.textContent = action.label; b.hidden = false; b.onclick = () => { t.hidden = true; clearTimeout(toast.h); action.fn(); }; }
+  if (action){
+    let entry = null;
+    if (action.label === 'Fortryd' && !readOnly){ entry = { msg, fn: action.fn }; undoStack.push(entry); if (undoStack.length > 30) undoStack.shift(); updUndo(); }
+    b.textContent = action.label; b.hidden = false;
+    b.onclick = () => { t.hidden = true; clearTimeout(toast.h); const i = undoStack.indexOf(entry); if (i >= 0){ undoStack.splice(i, 1); updUndo(); } action.fn(); };
+  }
   else { b.hidden = true; b.onclick = null; }
   t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, action ? 7000 : 2400);
 }
@@ -1295,7 +1339,7 @@ scroller.addEventListener('keydown', async e => {
 
 /* ---------- redigering ---------- */
 const form = $('form');
-const PANELS = ['panel', 'tpanel', 'ipanel', 'vpanel', 'npanel', 'ppanel'];
+const PANELS = ['panel', 'tpanel', 'ipanel', 'vpanel', 'npanel', 'epanel', 'ppanel'];
 function showPanel(id){ PANELS.forEach(p => $(p).hidden = p !== id); $('veil').hidden = false; }
 function closePanels(){ PANELS.forEach(p => $(p).hidden = true); $('veil').hidden = true; if (editor){ editor = null; setPresence({ editing: null }); } }
 function fillTimes(ds, keepT){
@@ -1397,7 +1441,8 @@ $('f-del').onclick = async () => {
   closePanels();
   let changes = ids.map(x => [x, null]);
   if (it && it.kind === 'task') changes = withDerived(changes, new Date().toISOString());
-  try { await commit(changes); toast(`Slettede “${it ? it.title : 'opgave'}”`); } catch(err){ handleWriteError(err); }
+  const undo = undoFor(changes, new Date().toISOString());
+  try { await commit(changes); toast(`Slettede “${it ? it.title : 'opgave'}”${ids.length > 1 ? ` og ${ids.length - 1} underopgaver` : ''}`, { label: 'Fortryd', fn: () => commit(undo).catch(handleWriteError) }); } catch(err){ handleWriteError(err); }
 };
 form.addEventListener('submit', async e => {
   e.preventDefault();
@@ -1436,11 +1481,12 @@ form.addEventListener('submit', async e => {
   if (kind === 'task') changes = withDerived(changes, ts);
   const topicMsg = kind === 'task' ? changes.find(([cid, d]) => cid !== id && d && d.kind === 'topic') : null;
   closePanels();
+  const undoAll = undoFor(changes, ts), undoFn = () => commit(undoAll).catch(handleWriteError);
   try {
     await commit(changes);
-    if (cascade.length) toast(`${title} er Done · ${cascade.length} underopgaver blev også Done`, { label: 'Fortryd', fn: () => commit(undo).catch(handleWriteError) });
-    else if (topicMsg) toast(`${existing ? 'Ændringer gemt' : `Tilføjede “${title}”`} · ${topicMsg[1].title} er nu ${topicMsg[1].status}`);
-    else toast(existing ? 'Ændringer gemt' : `Tilføjede “${title}”`);
+    if (cascade.length) toast(`${title} er Done · ${cascade.length} underopgaver blev også Done`, { label: 'Fortryd', fn: undoFn });
+    else if (topicMsg) toast(`${existing ? 'Ændringer gemt' : `Tilføjede “${title}”`} · ${topicMsg[1].title} er nu ${topicMsg[1].status}`, { label: 'Fortryd', fn: undoFn });
+    else toast(existing ? 'Ændringer gemt' : `Tilføjede “${title}”`, { label: 'Fortryd', fn: undoFn });
   } catch(err2){ handleWriteError(err2); }
 });
 
@@ -1476,7 +1522,8 @@ $('t-save').onclick = async () => {
   if (readOnly || JSON.stringify(members) === JSON.stringify(team)){ render(); return; }
   const prev = team;
   setTeam(normalizeTeam(members)); render();
-  try { if (local) LS.set(LSK + 'local-team', team); else await db.doc('settings/team').set({ members: team }); toast('Gruppen er gemt'); }
+  const saveTeam = async list => { if (local) LS.set(LSK + 'local-team', list); else await db.doc('settings/team').set({ members: list }); };
+  try { await saveTeam(team); toast('Gruppen er gemt', { label: 'Fortryd', fn: async () => { setTeam(prev); render(); await saveTeam(prev); } }); }
   catch(err){ setTeam(prev); render(); handleWriteError(err); }
 };
 
@@ -2145,8 +2192,9 @@ window.addEventListener('pointercancel', e => {
 /* Udfyldt ud fra gruppens skitse, whiteboardet og IP-planen. Alt kan rettes i appen og gemmes i settings/topology. */
 const topoEl = $('topo');
 const TOPO_DEFAULT = {
-  wan: { name: 'Skolens net', net: '10.233.192.0/24', gw: '10.233.192.1' },
-  dev: { r1: { name: 'R1', role: 'HQ' }, r2: { name: 'R2', role: 'Branch' }, r3: { name: 'R3', role: 'Branch' }, sw1: { name: 'SW1', role: 'HQ' }, sw2: { name: 'SW2', role: 'Branch' } },
+  wan: { name: 'Skolens net', net: '10.233.192.0/24', gw: '10.233.192.1', icon: 'cloud' },
+  dev: { r1: { name: 'R1', role: 'HQ', icon: 'router' }, r2: { name: 'R2', role: 'Branch', icon: 'router' }, r3: { name: 'R3', role: 'Branch', icon: 'router' }, sw1: { name: 'SW1', role: 'HQ', icon: 'switch' }, sw2: { name: 'SW2', role: 'Branch', icon: 'switch' } },
+  pos: {}, extra: [],
   r1: { wanIf: 'G0/1/3', wanIp: '10.233.192.67', lanIf: 'G0/0' },
   l3: { net: '172.16.67.0/30', r1If: 'G0/1', r1Ip: '172.16.67.1', rIf: 'G0/1', rIp: '172.16.67.2', lanIf: 'G0/0' },
   l2: { net: '172.16.67.4/30', r1If: 'G0/1/0', r1Ip: '172.16.67.5', rIf: 'G0/1', rIp: '172.16.67.6', lanIf: 'G0/0' },
@@ -2182,7 +2230,17 @@ function normTopo(d){
     hosts: (Array.isArray(v.hosts) ? v.hosts : []).filter(h => h && typeof h === 'object').slice(0, 12).map(h => ({ name: str(h.name, '', 30), ip: str(h.ip, '', 20) }))
   }));
   const seen = new Set(); for (const v of vlans){ while (seen.has(v.id)) v.id += 'x'; seen.add(v.id); }
-  return { wan: sec(o.wan, D.wan), dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), vlans, notes: str(o.notes, D.notes, 600) };
+  const okIcon = k => ICONS.some(x => x[0] === k);
+  const clampP = (x, y) => [Math.round(Math.max(60, Math.min(640, x))), Math.round(Math.max(60, Math.min(1400, y)))];
+  const pos = {};
+  if (o.pos && typeof o.pos === 'object') for (const k of Object.keys(TOPO_POS)){ const p = o.pos[k]; if (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) pos[k] = clampP(p[0], p[1]); }
+  const extra = (Array.isArray(o.extra) ? o.extra : []).filter(e => e && typeof e === 'object').slice(0, 30).map((e, i) => {
+    const [x, y] = clampP(+e.x || 120, +e.y || 700);
+    return { id: typeof e.id === 'string' && /^e[\w-]{1,40}$/.test(e.id) ? e.id : 'e' + i, icon: okIcon(e.icon) ? e.icon : 'pc', name: str(e.name, '', 30), ip: str(e.ip, '', 20), link: str(e.link, '', 44), x, y };
+  });
+  for (const k of Object.keys(dev)) if (!okIcon(dev[k].icon)) dev[k].icon = D.dev[k].icon;
+  const wan = sec(o.wan, D.wan); if (!okIcon(wan.icon)) wan.icon = 'cloud';
+  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), vlans, pos, extra, notes: str(o.notes, D.notes, 600) };
 }
 const topoNow = () => normTopo(topoDoc || TOPO_DEFAULT);
 const devName = (t, k) => t.dev[k].name || k.toUpperCase();
@@ -2255,87 +2313,106 @@ function topoCheck(t){
 const TW = (s, px, mono) => String(s).length * px * (mono ? 0.61 : 0.56);
 const HALO = 'paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round';
 const MONO = 'font-family:var(--f-mono)';
+/* Ikoner, man kan vælge mellem. Runde ikoner har kant i 29 px, skyen er bred, resten er kasser på 64 × 40. */
+const ICONS = [['router', 'Router'], ['l3switch', 'L3-switch'], ['switch', 'Switch'], ['firewall', 'Firewall'], ['server', 'Server'], ['pc', 'PC'], ['printer', 'Printer'], ['ap', 'Access point'], ['cloud', 'Sky / internet']];
+const ICON_NAME = Object.fromEntries(ICONS);
+const isRound = k => k === 'router' || k === 'ap';
+function edgeOf(kind, u){
+  if (isRound(kind)) return 29;
+  if (kind === 'cloud') return Math.min(66 / Math.abs(u[0] || 1e-9), 34 / Math.abs(u[1] || 1e-9));
+  return Math.min(33 / Math.abs(u[0] || 1e-9), 21 / Math.abs(u[1] || 1e-9));
+}
+function iconSVG(kind, x, y, col){
+  const ln = `style="fill:none;stroke:${col};stroke-width:2;stroke-linecap:round;stroke-linejoin:round"`;
+  const box = `<rect x="${x - 32}" y="${y - 20}" width="64" height="40" rx="8" style="fill:var(--surface);stroke:${col};stroke-width:2.2"/>`;
+  const x4 = (s) => `M${x + 3 * s} ${y - 3 * s}L${x + 11 * s} ${y - 11 * s}M${x + 5 * s} ${y - 11 * s}H${x + 11 * s}V${y - 5 * s}M${x - 3 * s} ${y + 3 * s}L${x - 11 * s} ${y + 11 * s}M${x - 5 * s} ${y + 11 * s}H${x - 11 * s}V${y + 5 * s}`
+    + `M${x - 12 * s} ${y - 12 * s}L${x - 4 * s} ${y - 4 * s}M${x - 10 * s} ${y - 4 * s}H${x - 4 * s}V${y - 10 * s}M${x + 12 * s} ${y + 12 * s}L${x + 4 * s} ${y + 4 * s}M${x + 10 * s} ${y + 4 * s}H${x + 4 * s}V${y + 10 * s}`;
+  switch (kind){
+    case 'router': return `<circle cx="${x}" cy="${y}" r="28" style="fill:var(--surface);stroke:${col};stroke-width:2.2"/><path d="${x4(1)}" ${ln}/>`;
+    case 'ap': return `<circle cx="${x}" cy="${y}" r="28" style="fill:var(--surface);stroke:${col};stroke-width:2.2"/><circle cx="${x}" cy="${y + 8}" r="2.6" style="fill:${col}"/><path d="M${x - 8} ${y + 1}a11 11 0 0 1 16 0M${x - 14} ${y - 5}a19 19 0 0 1 28 0" ${ln}/>`;
+    case 'l3switch': return box + `<path d="${x4(0.8)}" ${ln}/><path d="M${x - 26} ${y}H${x - 17}M${x + 17} ${y}H${x + 26}" ${ln}/>`;
+    case 'switch': return box + `<path d="M${x - 15} ${y - 6}H${x + 15}M${x + 10} ${y - 10}L${x + 15} ${y - 6}L${x + 10} ${y - 2}M${x + 15} ${y + 6}H${x - 15}M${x - 10} ${y + 2}L${x - 15} ${y + 6}L${x - 10} ${y + 10}" ${ln}/>`;
+    case 'firewall': return box + `<path d="M${x - 32} ${y - 7}H${x + 32}M${x - 32} ${y + 6}H${x + 32}M${x - 12} ${y - 20}V${y - 7}M${x + 12} ${y - 20}V${y - 7}M${x} ${y - 7}V${y + 6}M${x - 22} ${y - 7}V${y + 6}M${x + 22} ${y - 7}V${y + 6}M${x - 12} ${y + 6}V${y + 20}M${x + 12} ${y + 6}V${y + 20}" style="fill:none;stroke:${col};stroke-width:1.6"/>`;
+    case 'server': return box + `<path d="M${x - 22} ${y - 8}H${x + 22}M${x - 22} ${y + 6}H${x + 22}" style="fill:none;stroke:${col};stroke-width:1.4;stroke-opacity:.5"/><path d="M${x - 20} ${y - 13}H${x + 4}M${x - 20} ${y + 1}H${x + 4}M${x - 20} ${y + 13}H${x + 4}" ${ln}/><circle cx="${x + 16}" cy="${y - 13}" r="2" style="fill:${col}"/><circle cx="${x + 16}" cy="${y + 1}" r="2" style="fill:${col}"/><circle cx="${x + 16}" cy="${y + 13}" r="2" style="fill:${col}"/>`;
+    case 'pc': return box + `<rect x="${x - 15}" y="${y - 13}" width="30" height="19" rx="2" ${ln}/><path d="M${x} ${y + 6}V${y + 11}M${x - 9} ${y + 13}H${x + 9}" ${ln}/>`;
+    case 'printer': return box + `<path d="M${x - 10} ${y - 5}V${y - 14}H${x + 10}V${y - 5}M${x - 18} ${y + 7}V${y - 5}H${x + 18}V${y + 7}M${x - 10} ${y + 2}H${x + 10}V${y + 14}H${x - 10}Z" ${ln}/>`;
+    case 'cloud': {
+      const parts = st => [[x - 44, y + 6, 22], [x - 16, y - 10, 28], [x + 20, y - 8, 25], [x + 46, y + 7, 19]].map(([a, b, r]) => `<circle cx="${a}" cy="${b}" r="${r}" style="${st}"/>`).join('') + `<rect x="${x - 62}" y="${y + 4}" width="124" height="24" rx="12" style="${st}"/>`;
+      return parts(`fill:${col};stroke:${col};stroke-width:4`) + parts('fill:var(--surface-2)');
+    }
+  }
+  return box;
+}
+const TOPO_POS = { wan: [330, 74], r1: [330, 230], sw1: [620, 230], r3: [180, 414], r2: [480, 414], sw2: [330, 582] };
+const posOf = (t, k) => (t.pos && t.pos[k]) || TOPO_POS[k];
 function topoSVG(t){
   const C = { hq: 'var(--t-hq)', br: 'var(--t-br)' };
   const byV = (a, b) => a.vlan - b.vlan || a.name.localeCompare(b.name, 'da');
   const hq = t.vlans.filter(v => v.site === 'hq').sort(byV), br = t.vlans.filter(v => v.site === 'br').sort(byV);
-  const CX = 330, X3 = 180, X2 = 480, XS1 = 620, SP = 700, RX = 720, RE = 1172;
-  const YC = 74, Y1 = 230, YB = 414, YS2 = 582;
+  const SP = 700, RX = 720, RE = 1172;
+  const P = {}; for (const k of Object.keys(TOPO_POS)) P[k] = posOf(t, k);
+  const KIND = { wan: t.wan.icon || 'cloud' }; for (const k of ['r1', 'r2', 'r3', 'sw1', 'sw2']) KIND[k] = t.dev[k].icon || (k[0] === 'r' ? 'router' : 'switch');
+  for (const e of t.extra){ P[e.id] = [e.x, e.y]; KIND[e.id] = e.icon; }
   const RH = 54, HH = 30, CAP = 30;
   const rowsH = list => list.length ? list.reduce((a, v) => a + RH + (v.hosts.length ? HH : 0), 0) : RH;
-  const hqTop = Math.max(24, Math.round(Y1 - rowsH(hq) / 2 - CAP)), hqEnd = hqTop + CAP + rowsH(hq);
-  const brTop = Math.max(hqEnd + 34, Math.round(YS2 - rowsH(br) / 2 - CAP)), brEnd = brTop + CAP + rowsH(br);
-  const W = 1200, H = Math.max(brEnd, YS2 + 72) + 24;
+  const Y1 = P.sw1[1], YS2 = P.sw2[1];
+  const hqTop = Math.max(24, Math.round(230 - rowsH(hq) / 2 - CAP)), hqEnd = hqTop + CAP + rowsH(hq);
+  const brTop = Math.max(hqEnd + 34, Math.round(582 - rowsH(br) / 2 - CAP)), brEnd = brTop + CAP + rowsH(br);
+  const maxY = Math.max(...Object.values(P).map(p => p[1]));
+  const W = 1200, H = Math.max(brEnd, maxY + 72, 654) + 24;
   const N = k => devName(t, k);
   const txt = (x, y, s, st, anchor) => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${anchor ? ` text-anchor="${anchor}"` : ''} style="${st || ''}">${esc(s)}</text>`;
-  const unit = (ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+  const unit = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+  const f1 = n => n.toFixed(1);
   let g = '';
-  // Forklaring
   const lg2 = 49 + TW(siteName(t, 'hq'), 13) * 1.2 + 16;
   g += `<g><rect x="32" y="24" width="11" height="11" rx="2" style="fill:${C.hq}"/>${txt(49, 34.5, siteName(t, 'hq'), 'font-size:13px;fill:var(--muted)')}`
-    + `<rect x="${lg2.toFixed(1)}" y="24" width="11" height="11" rx="2" style="fill:${C.br}"/>${txt(lg2 + 17, 34.5, siteName(t, 'br'), 'font-size:13px;fill:var(--muted)')}</g>`;
+    + `<rect x="${f1(lg2)}" y="24" width="11" height="11" rx="2" style="fill:${C.br}"/>${txt(lg2 + 17, 34.5, siteName(t, 'br'), 'font-size:13px;fill:var(--muted)')}</g>`;
 
-  /* forbindelser først, så enhederne ligger ovenpå */
-  const endLbl = (x, y, anchor, a, b) => txt(x, y, a, `${MONO};font-size:12.5px;font-weight:500;${HALO}`, anchor) + (b ? txt(x, y + 14.5, b, `${MONO};font-size:12px;fill:var(--muted);${HALO}`, anchor) : '');
-  const chip = (x, y, s) => { const w = TW(s, 12, true) + 18; return `<rect x="${(x - w / 2).toFixed(1)}" y="${y - 11}" width="${w.toFixed(1)}" height="22" rx="11" style="fill:var(--surface);stroke:var(--line-3)"/>` + txt(x, y + 4.5, s, `${MONO};font-size:12px`, 'middle'); };
-  const trunk = (x1, y1, x2, y2) => `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="stroke:var(--muted);stroke-width:5;stroke-linecap:round"/><line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="stroke:var(--surface);stroke-width:1.6;stroke-linecap:round"/>`;
-  const wire = (x1, y1, x2, y2, extra) => `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="stroke:var(--muted);stroke-width:2;stroke-linecap:round${extra || ''}"/>`;
-
-  // Skolens net → R1
+  const endLbl = (x, y, anchor, a, b) => (a ? txt(x, y, a, `${MONO};font-size:12.5px;font-weight:500;${HALO}`, anchor) : '') + (b ? txt(x, y + 14.5, b, `${MONO};font-size:12px;fill:var(--muted);${HALO}`, anchor) : '');
+  const chip = (x, y, s) => { const w = TW(s, 12, true) + 18; return `<rect x="${f1(x - w / 2)}" y="${f1(y - 11)}" width="${f1(w)}" height="22" rx="11" style="fill:var(--surface);stroke:var(--line-3)"/>` + txt(x, y + 4.5, s, `${MONO};font-size:12px`, 'middle'); };
+  const lineSt = style => style === 'trunk' ? ['stroke:var(--muted);stroke-width:5;stroke-linecap:round', 'stroke:var(--surface);stroke-width:1.6;stroke-linecap:round']
+    : style === 'wan' ? ['stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-dasharray:6 5'] : style === 'hsrp' ? ['stroke:var(--muted);stroke-width:1.6;stroke-dasharray:3 5'] : ['stroke:var(--muted);stroke-width:2;stroke-linecap:round'];
+  /* Én forbindelse mellem to enheder: linje fra kant til kant, tekst ved enderne og evt. et net i midten */
+  const link = (ka, kb, o) => {
+    const a = P[ka], b = P[kb], u = unit(a, b);
+    const ea = edgeOf(KIND[ka], u), eb = edgeOf(KIND[kb], [-u[0], -u[1]]);
+    const p1 = [a[0] + u[0] * ea, a[1] + u[1] * ea], p2 = [b[0] - u[0] * eb, b[1] - u[1] * eb];
+    let out, anchor;
+    if (Math.abs(u[1]) < 0.3){ out = [0, -1]; anchor = 'start'; }
+    else if (Math.abs(u[0]) < 0.3){ out = [1, 0]; anchor = 'start'; }
+    else { const mx = (a[0] + b[0]) / 2 - 330, my = (a[1] + b[1]) / 2 - 400, pp = [u[1], -u[0]]; out = pp[0] * mx + pp[1] * my >= 0 ? pp : [-pp[0], -pp[1]]; anchor = out[0] < 0 ? 'end' : 'start'; }
+    const da = ea + (KIND[ka] === 'cloud' ? 16 : 34), db = eb + (KIND[kb] === 'cloud' ? 16 : 36);
+    const la = [a[0] + u[0] * da + out[0] * 14, a[1] + u[1] * da + out[1] * 14 + (out[1] < 0 ? -4 : 4)];
+    const lb = [b[0] - u[0] * db + out[0] * 14, b[1] - u[1] * db + out[1] * 14 + (out[1] < 0 ? -4 : 4)];
+    const m = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+    const sts = lineSt(o.style);
+    let s = sts.map(st => `<line x1="${f1(p1[0])}" y1="${f1(p1[1])}" x2="${f1(p2[0])}" y2="${f1(p2[1])}" style="${st}"/>`).join('');
+    s += endLbl(la[0], la[1], anchor, o.a1 || '', o.a2 || '') + endLbl(lb[0], lb[1], anchor, o.b1 || '', o.b2 || '');
+    if (o.chip) s += chip(m[0], m[1], o.chip);
+    if (o.mid){ const mo = Math.abs(u[1]) < 0.3 ? [0, 22] : [out[0] * 12, out[1] * 12 + 4]; s += txt(m[0] + mo[0], m[1] + mo[1], o.mid, `font-size:12px;fill:var(--muted);${HALO}`, Math.abs(u[1]) < 0.3 ? 'middle' : anchor); }
+    if (!o.net) return s;
+    const pad = 16, x0 = Math.min(p1[0], p2[0]) - pad, y0 = Math.min(p1[1], p2[1]) - pad;
+    return `<g data-net="${o.net}" tabindex="0" role="button" aria-label="${esc(o.aria || '')}. Klik for at rette."><rect class="nhit" fill="transparent" x="${f1(x0)}" y="${f1(y0)}" width="${f1(Math.abs(p2[0] - p1[0]) + pad * 2)}" height="${f1(Math.abs(p2[1] - p1[1]) + pad * 2)}" rx="8"/>${s}</g>`;
+  };
   const wc = cidr(t.wan.net);
-  g += `<g data-net="wan" tabindex="0" role="button" aria-label="Forbindelsen til ${esc(t.wan.name)}. Klik for at rette.">`
-    + `<rect class="nhit" fill="transparent" x="${CX - 8}" y="${YC + 32}" width="120" height="${Y1 - YC - 64}" rx="6"/>`
-    + wire(CX, YC + 30, CX, Y1 - 29, ';stroke-dasharray:6 5')
-    + endLbl(CX + 10, YC + 50, 'start', t.wan.gw ? `gw ${shortIp(t.wan.gw, wc)}` : '', '')
-    + endLbl(CX + 10, Y1 - 48, 'start', t.r1.wanIf, shortIp(t.r1.wanIp, wc)) + '</g>';
-
-  // R1 → SW1 (trunk med HQ-VLAN'erne)
-  g += `<g data-net="r1" tabindex="0" role="button" aria-label="Trunk fra ${esc(N('r1'))} til ${esc(N('sw1'))}. Klik for at rette.">`
-    + `<rect class="nhit" fill="transparent" x="${CX + 32}" y="${Y1 - 24}" width="${XS1 - CX - 66}" height="48" rx="6"/>`
-    + trunk(CX + 29, Y1, XS1 - 33, Y1)
-    + endLbl(CX + 40, Y1 - 10, 'start', t.r1.lanIf, '')
-    + txt((CX + XS1) / 2 + 12, Y1 + 22, '802.1Q trunk', `font-size:12px;fill:var(--muted);${HALO}`, 'middle') + '</g>';
-
-  // R1 → R3 og R1 → R2 (punkt-til-punkt)
-  for (const [k, rx, side] of [['l3', X3, -1], ['l2', X2, 1]]){
-    const L = t[k], c = cidr(L.net), u = unit(CX, Y1, rx, YB);
-    const out = side < 0 ? [-u[1], u[0]] : [u[1], -u[0]];
-    const anchor = side < 0 ? 'end' : 'start';
-    const a = [CX + u[0] * 64 + out[0] * 14, Y1 + u[1] * 64 + out[1] * 14];
-    const b = [rx - u[0] * 66 + out[0] * 14, YB - u[1] * 66 + out[1] * 14];
-    const mx = (CX + rx) / 2, my = (Y1 + YB) / 2;
-    g += `<g data-net="${k}" tabindex="0" role="button" aria-label="Linket ${esc(N('r1'))}–${esc(N(k === 'l3' ? 'r3' : 'r2'))}, ${esc(L.net)}. Klik for at rette.">`
-      + `<rect class="nhit" fill="transparent" x="${Math.min(CX, rx) - (side < 0 ? 60 : 10)}" y="${Y1 + 34}" width="${Math.abs(rx - CX) + 70}" height="${YB - Y1 - 70}" rx="8"/>`
-      + wire(CX + u[0] * 29, Y1 + u[1] * 29, rx - u[0] * 29, YB - u[1] * 29)
-      + endLbl(a[0], a[1], anchor, L.r1If, shortIp(L.r1Ip, c))
-      + endLbl(b[0], b[1], anchor, L.rIf, shortIp(L.rIp, c))
-      + (L.net ? chip(mx, my, L.net) : '') + '</g>';
+  g += link('r1', 'wan', { style: 'wan', net: 'wan', aria: `Forbindelsen til ${t.wan.name}`, a1: t.r1.wanIf, a2: shortIp(t.r1.wanIp, wc), b1: t.wan.gw ? `gw ${shortIp(t.wan.gw, wc)}` : '' });
+  g += link('r1', 'sw1', { style: 'trunk', net: 'r1', aria: `Trunk fra ${N('r1')} til ${N('sw1')}`, a1: t.r1.lanIf, mid: '802.1Q trunk' });
+  for (const [k, rk] of [['l3', 'r3'], ['l2', 'r2']]){
+    const L = t[k], c = cidr(L.net);
+    g += link('r1', rk, { net: k, aria: `Linket ${N('r1')}–${N(rk)}, ${L.net}`, a1: L.r1If, a2: shortIp(L.r1Ip, c), b1: L.rIf, b2: shortIp(L.rIp, c), chip: L.net });
   }
-
-  // HSRP mellem de to branch-routere
-  g += wire(X3 + 31, YB, X2 - 31, YB, ';stroke-dasharray:3 5;stroke-width:1.6')
-    + txt(CX, YB - 8, 'HSRP', `font-size:13.5px;font-weight:600;${HALO}`, 'middle')
-    + txt(CX, YB + 18, 'fælles gateway', `font-size:12px;fill:var(--muted);${HALO}`, 'middle');
-
-  // R3 → SW2 og R2 → SW2 (trunks)
-  for (const [k, rx, side] of [['r3', X3, -1], ['r2', X2, 1]]){
-    const L = t[k === 'r3' ? 'l3' : 'l2'], u = unit(rx, YB, CX, YS2);
-    const out = side < 0 ? [-u[1], u[0]] : [u[1], -u[0]];
-    const anchor = side < 0 ? 'end' : 'start';
-    const se = Math.min(33 / Math.abs(u[0] || 1e-9), 21 / Math.abs(u[1] || 1e-9));
-    const a = [rx + u[0] * 52 + out[0] * 13, YB + u[1] * 52 + out[1] * 13];
-    const m = [(rx + CX) / 2 + out[0] * 12, (YB + YS2) / 2 + out[1] * 12];
-    g += `<g data-net="${k}" tabindex="0" role="button" aria-label="Trunk fra ${esc(N(k))} til ${esc(N('sw2'))}. Klik for at rette.">`
-      + `<rect class="nhit" fill="transparent" x="${Math.min(rx, CX) - (side < 0 ? 40 : 0)}" y="${YB + 34}" width="${Math.abs(CX - rx) + 40}" height="${YS2 - YB - 58}" rx="8"/>`
-      + trunk(rx + u[0] * 29, YB + u[1] * 29, CX - u[0] * se, YS2 - u[1] * se)
-      + endLbl(a[0], a[1] + 4, anchor, L.lanIf, '')
-      + txt(m[0], m[1] + 4, 'trunk', `font-size:12px;fill:var(--muted);${HALO}`, anchor) + '</g>';
+  { // HSRP mellem de to branch-routere
+    const a = P.r3, b = P.r2, u = unit(a, b), ea = edgeOf(KIND.r3, u) + 2, eb = edgeOf(KIND.r2, u) + 2, m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    g += `<line x1="${f1(a[0] + u[0] * ea)}" y1="${f1(a[1] + u[1] * ea)}" x2="${f1(b[0] - u[0] * eb)}" y2="${f1(b[1] - u[1] * eb)}" style="${lineSt('hsrp')[0]}"/>`
+      + txt(m[0], m[1] - 8, 'HSRP', `font-size:13.5px;font-weight:600;${HALO}`, 'middle') + txt(m[0], m[1] + 18, 'fælles gateway', `font-size:12px;fill:var(--muted);${HALO}`, 'middle');
   }
+  for (const [rk, L] of [['r3', t.l3], ['r2', t.l2]]) g += link(rk, 'sw2', { style: 'trunk', net: rk, aria: `Trunk fra ${N(rk)} til ${N('sw2')}`, a1: L.lanIf, mid: 'trunk' });
+  for (const e of t.extra) if (e.link && P[e.link] && e.link !== e.id) g += link(e.id, e.link, { style: e.link === 'wan' ? 'wan' : '', a1: '', b1: '' });
 
-  // Switch → VLAN'er (en "rygrad" med en gren pr. VLAN)
-  const lists = [];
-  const list = (vs, top, sx, sy, site, capTxt) => {
-    const col = C[site];
+  // Switch → VLAN'er
+  const list = (vs, top, key, site, capTxt) => {
+    const col = C[site], sp = P[key], sx = Math.min(sp[0] + (isRound(KIND[key]) ? 29 : 33), SP), sy = sp[1];
     let y = top + CAP, rows = '', ys = [];
     rows += txt(RX, top + 16, capTxt, `${MONO};font-size:11.5px;letter-spacing:.08em;fill:var(--muted)`);
     if (!vs.length){ ys.push(y + RH / 2); rows += txt(RX, y + RH / 2 + 4, 'Ingen VLAN endnu. Tilføj med “+ VLAN”.', 'font-size:13.5px;fill:var(--muted)'); }
@@ -2346,7 +2423,6 @@ function topoSVG(t){
       const info = site === 'br' ? `HSRP ${shortIp(v.gw, c) || '–'} · ${rn('r2')} · ${rn('r3')}` : `Gateway ${shortIp(v.gw, c) || '–'}`;
       let hosts = '';
       if (v.hosts.length){
-        // Faste enheder i VLAN'et: ét server-ikon og navnene på én linje (tspan'er, så afstanden altid passer)
         const hy = cy + RH / 2 + HH / 2 - 6, hx = RX + 62;
         hosts += `<path d="M${RX + 26} ${cy + 14}V${hy}H${hx - 5}" style="fill:none;stroke:${col};stroke-width:1.3;stroke-opacity:.7"/>`
           + `<rect x="${hx}" y="${hy - 8}" width="11" height="16" rx="2" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.3"/>`
@@ -2368,44 +2444,41 @@ function topoSVG(t){
       y += RH + hh;
     }
     const y0 = Math.min(sy, ys[0]), y1 = Math.max(sy, ys[ys.length - 1]);
-    lists.push(`<line x1="${sx}" y1="${sy}" x2="${SP}" y2="${sy}" style="stroke:${col};stroke-width:1.6"/><line x1="${SP}" y1="${y0}" x2="${SP}" y2="${y1}" style="stroke:${col};stroke-width:1.6;stroke-linecap:round"/>` + rows);
+    return `<path d="M${f1(sx)} ${f1(sy)}H${SP}" style="fill:none;stroke:${col};stroke-width:1.6"/><line x1="${SP}" y1="${f1(y0)}" x2="${SP}" y2="${f1(y1)}" style="stroke:${col};stroke-width:1.6;stroke-linecap:round"/>` + rows;
   };
-  list(hq, hqTop, XS1 + 33, Y1, 'hq', `${siteName(t, 'hq').toUpperCase()}-LAN · ${hq.length} VLAN`);
-  list(br, brTop, CX + 33, YS2, 'br', `${siteName(t, 'br').toUpperCase()}-LAN · ${br.length} VLAN`);
-  g += lists.join('');
+  g += list(hq, hqTop, 'sw1', 'hq', `${siteName(t, 'hq').toUpperCase()}-LAN · ${hq.length} VLAN`);
+  g += list(br, brTop, 'sw2', 'br', `${siteName(t, 'br').toUpperCase()}-LAN · ${br.length} VLAN`);
 
-  // Enhederne
-  const label = (x, y, anchor, name, role) => txt(x, y, name, 'font-family:var(--f-display);font-size:16px;font-weight:700', anchor) + txt(x, y + 17, role, 'font-size:12.5px;fill:var(--muted)', anchor);
-  const router = (k, x, y, col, side) => {
-    const nm = N(k), role = t.dev[k].role, lw = Math.max(TW(nm, 16), TW(role, 12.5));
-    const arrows = `M${x + 3} ${y - 3}L${x + 11} ${y - 11}M${x + 5} ${y - 11}H${x + 11}V${y - 5}M${x - 3} ${y + 3}L${x - 11} ${y + 11}M${x - 5} ${y + 11}H${x - 11}V${y + 5}`
-      + `M${x - 12} ${y - 12}L${x - 4} ${y - 4}M${x - 10} ${y - 4}H${x - 4}V${y - 10}M${x + 12} ${y + 12}L${x + 4} ${y + 4}M${x + 10} ${y + 4}H${x + 4}V${y + 10}`;
-    const lx = side < 0 ? x - 40 : x + 40, hx = side < 0 ? lx - lw - 8 : x - 34;
-    return `<g data-net="${k}" tabindex="0" role="button" aria-label="${esc(nm)}, router, ${esc(role)}. Klik for at rette.">`
-      + `<rect class="nhit" fill="transparent" x="${hx.toFixed(1)}" y="${y - 34}" width="${(lw + 82).toFixed(1)}" height="68" rx="10"/>`
-      + `<circle cx="${x}" cy="${y}" r="28" style="fill:var(--surface);stroke:${col};stroke-width:2.2"/>`
-      + `<path d="${arrows}" style="fill:none;stroke:${col};stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>`
-      + label(lx, y - 1, side < 0 ? 'end' : 'start', nm, role) + '</g>';
+  // Enhederne (kan trækkes rundt)
+  const SIDE = { r1: -1, r3: -1, r2: 1 };
+  const device = (key, attr, kind, col, name, sub, sub2, aria) => {
+    const [x, y] = P[key], side = isRound(kind) ? (SIDE[key] || 1) : 0;
+    const lw = Math.max(TW(name, 16), TW(sub, 12.5), sub2 ? TW(sub2, 12, true) : 0);
+    let lbl, hit;
+    if (kind === 'cloud'){
+      lbl = txt(x, y + 2, name, 'font-size:14px;font-weight:600', 'middle') + txt(x, y + 19, sub, `${MONO};font-size:12.5px;fill:var(--muted)`, 'middle');
+      hit = [x - 74, y - 44, 148, 78];
+    } else if (side){
+      const lx = side < 0 ? x - 40 : x + 40, an = side < 0 ? 'end' : 'start';
+      lbl = txt(lx, y - 1, name, 'font-family:var(--f-display);font-size:16px;font-weight:700', an) + txt(lx, y + 16, sub, 'font-size:12.5px;fill:var(--muted)', an)
+        + (sub2 ? txt(lx, y + 31, sub2, `${MONO};font-size:12px;fill:var(--muted)`, an) : '');
+      hit = [side < 0 ? lx - lw - 8 : x - 34, y - 34, lw + 82, 68];
+    } else {
+      lbl = txt(x, y + 40, name, 'font-family:var(--f-display);font-size:16px;font-weight:700', 'middle') + txt(x, y + 57, sub, 'font-size:12.5px;fill:var(--muted)', 'middle')
+        + (sub2 ? txt(x, y + 72, sub2, `${MONO};font-size:12px;fill:var(--muted)`, 'middle') : '');
+      hit = [x - Math.max(50, lw / 2 + 8), y - 26, Math.max(100, lw + 16), sub2 ? 106 : 92];
+    }
+    return `<g ${attr} data-drag="${esc(key)}" tabindex="0" role="button" aria-label="${esc(aria)}. Klik for at rette, træk for at flytte." style="cursor:grab">`
+      + `<rect class="nhit" fill="transparent" x="${f1(hit[0])}" y="${f1(hit[1])}" width="${f1(hit[2])}" height="${f1(hit[3])}" rx="10"/>`
+      + iconSVG(kind, x, y, col) + lbl + '</g>';
   };
-  const sw = (k, x, y, col) => {
-    const nm = N(k), role = t.dev[k].role ? t.dev[k].role + '-switch' : 'switch';
-    return `<g data-net="${k}" tabindex="0" role="button" aria-label="${esc(nm)}, switch, ${esc(role)}. Klik for at rette.">`
-      + `<rect class="nhit" fill="transparent" x="${x - 50}" y="${y - 26}" width="100" height="92" rx="10"/>`
-      + `<rect x="${x - 32}" y="${y - 20}" width="64" height="40" rx="8" style="fill:var(--surface);stroke:${col};stroke-width:2.2"/>`
-      + `<path d="M${x - 15} ${y - 6}H${x + 15}M${x + 10} ${y - 10}L${x + 15} ${y - 6}L${x + 10} ${y - 2}M${x + 15} ${y + 6}H${x - 15}M${x - 10} ${y + 2}L${x - 15} ${y + 6}L${x - 10} ${y + 10}" style="fill:none;stroke:${col};stroke-width:2;stroke-linecap:round;stroke-linejoin:round"/>`
-      + label(x, y + 40, 'middle', nm, role) + '</g>';
-  };
-  // Skyen tegnes som flere cirkler: først kanten, så fyldet ovenpå, så kun yderkanten ses
-  const cloud = (x, y) => {
-    const parts = st => [[x - 44, y + 6, 22], [x - 16, y - 10, 28], [x + 20, y - 8, 25], [x + 46, y + 7, 19]].map(([a, b, r]) => `<circle cx="${a}" cy="${b}" r="${r}" style="${st}"/>`).join('') + `<rect x="${x - 62}" y="${y + 4}" width="124" height="24" rx="12" style="${st}"/>`;
-    return `<g data-net="wan" tabindex="0" role="button" aria-label="${esc(t.wan.name)}, ${esc(t.wan.net)}. Klik for at rette.">`
-      + `<rect class="nhit" fill="transparent" x="${x - 74}" y="${y - 44}" width="148" height="78" rx="12"/>`
-      + parts('fill:var(--muted);stroke:var(--muted);stroke-width:4') + parts('fill:var(--surface-2)')
-      + txt(x, y + 2, t.wan.name || 'Skolens net', 'font-size:14px;font-weight:600', 'middle')
-      + txt(x, y + 19, t.wan.net, `${MONO};font-size:12.5px;fill:var(--muted)`, 'middle') + '</g>';
-  };
-  g += cloud(CX, YC) + router('r1', CX, Y1, C.hq, -1) + sw('sw1', XS1, Y1, C.hq)
-    + router('r3', X3, YB, C.br, -1) + router('r2', X2, YB, C.br, 1) + sw('sw2', CX, YS2, C.br);
+  g += device('wan', 'data-net="wan"', KIND.wan, 'var(--muted)', t.wan.name || 'Skolens net', t.wan.net, '', `${t.wan.name}, ${t.wan.net}`);
+  for (const [k, col] of [['r1', C.hq], ['sw1', C.hq], ['r3', C.br], ['r2', C.br], ['sw2', C.br]]){
+    const kind = KIND[k], role = t.dev[k].role || '';
+    const sub = k[0] === 's' && kind === 'switch' ? (role ? role + '-switch' : 'switch') : role;
+    g += device(k, `data-net="${k}"`, kind, col, N(k), sub, '', `${N(k)}, ${ICON_NAME[kind] || ''}, ${role}`);
+  }
+  for (const e of t.extra) g += device(e.id, `data-ext="${esc(e.id)}"`, e.icon, 'var(--accent)', e.name || ICON_NAME[e.icon] || 'Enhed', ICON_NAME[e.icon] || '', e.ip, `${e.name}, ${ICON_NAME[e.icon] || ''}`);
 
   const claim = `Netværkstopologi: ${N('r1')} forbinder ${t.wan.name || 'skolens net'} med ${siteName(t, 'hq')}-LAN'et via ${N('sw1')} og med ${N('r3')} og ${N('r2')}, som deler gateway i ${siteName(t, 'br')}-VLAN'erne med HSRP.`;
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(claim)}" style="font-family:var(--f-body);fill:var(--fg)">${g}</svg>`;
@@ -2489,8 +2562,8 @@ function checksHTML(list){
 }
 function fitMapLabels(){ topoEl.querySelectorAll('.amap-seg').forEach(s => { s.classList.remove('nolabel'); if (s.scrollWidth > s.clientWidth) s.classList.add('nolabel'); }); }
 function renderTopo(){
-  if (view !== 'topo') return;
-  $('tAddVlan').hidden = readOnly;
+  if (view !== 'topo' || (tdrag && tdrag.moved)) return;
+  $('tAddVlan').hidden = readOnly; $('tAddDev').hidden = readOnly;
   if (!topoLoaded){ $('topoSvg').innerHTML = '<div class="tempty">Henter topologien…</div>'; return; }
   const t = topoNow(), checks = topoCheck(t);
   $('topoSvg').innerHTML = topoSVG(t);
@@ -2533,6 +2606,8 @@ topoEl.addEventListener('pointermove', e => {
 topoEl.addEventListener('pointerleave', hideTip);
 topoEl.addEventListener('scroll', hideTip, { passive: true });
 function topoActivate(el){
+  if (Date.now() - tdragEnd < 350) return true;
+  const x = el.closest('[data-ext]'); if (x){ openExtra(x.dataset.ext); return true; }
   const v = el.closest('[data-vlan]'); if (v){ hideTip(); openVlan(v.dataset.vlan); return true; }
   const n = el.closest('[data-net]'); if (n){ openNet(n.dataset.net); return true; }
   return false;
@@ -2540,7 +2615,7 @@ function topoActivate(el){
 topoEl.addEventListener('click', e => { topoActivate(e.target); });
 topoEl.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
-  if (!e.target.matches('[data-vlan],[data-net]') || e.target.tagName === 'BUTTON') return;
+  if (!e.target.matches('[data-vlan],[data-net],[data-ext]') || e.target.tagName === 'BUTTON') return;
   e.preventDefault(); topoActivate(e.target);
 });
 $('tAddVlan').onclick = () => openVlan(null);
@@ -2690,13 +2765,13 @@ const setP = (o, p, v) => { const ks = p.split('.'); let a = o; for (let i = 0; 
 function netSections(t){
   const N = k => devName(t, k);
   return [
-    { key: 'wan', h: t.wan.name || 'Skolens net', f: [['wan.name', 'Navn'], ['wan.net', 'Netværk', '10.233.192.0/24'], ['wan.gw', 'Gateway', '10.233.192.1'], ['r1.wanIf', `Interface på ${N('r1')}`, 'G0/1/3'], ['r1.wanIp', `IP på ${N('r1')}`, '10.233.192.67']] },
-    { key: 'r1', h: `${N('r1')} · ${t.dev.r1.role || 'router'}`, f: [['dev.r1.name', 'Navn'], ['dev.r1.role', 'Rolle'], ['r1.lanIf', `Interface mod ${N('sw1')} (trunk)`, 'G0/0']] },
+    { key: 'wan', h: t.wan.name || 'Skolens net', f: [['wan.icon', 'Ikon', '', 'icon'], ['wan.name', 'Navn'], ['wan.net', 'Netværk', '10.233.192.0/24'], ['wan.gw', 'Gateway', '10.233.192.1'], ['r1.wanIf', `Interface på ${N('r1')}`, 'G0/1/3'], ['r1.wanIp', `IP på ${N('r1')}`, '10.233.192.67']] },
+    { key: 'r1', h: `${N('r1')} · ${t.dev.r1.role || 'router'}`, f: [['dev.r1.icon', 'Ikon', '', 'icon'], ['dev.r1.name', 'Navn'], ['dev.r1.role', 'Rolle'], ['r1.lanIf', `Interface mod ${N('sw1')} (trunk)`, 'G0/0']] },
     { key: 'l3', h: `Link ${N('r1')} – ${N('r3')}`, f: [['l3.net', 'Netværk', '172.16.67.0/30'], ['l3.r1If', `Interface på ${N('r1')}`], ['l3.r1Ip', `IP på ${N('r1')}`], ['l3.rIf', `Interface på ${N('r3')}`], ['l3.rIp', `IP på ${N('r3')}`]] },
     { key: 'l2', h: `Link ${N('r1')} – ${N('r2')}`, f: [['l2.net', 'Netværk', '172.16.67.4/30'], ['l2.r1If', `Interface på ${N('r1')}`], ['l2.r1Ip', `IP på ${N('r1')}`], ['l2.rIf', `Interface på ${N('r2')}`], ['l2.rIp', `IP på ${N('r2')}`]] },
-    { key: 'r3', h: `${N('r3')} · ${t.dev.r3.role || 'router'}`, f: [['dev.r3.name', 'Navn'], ['dev.r3.role', 'Rolle'], ['l3.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0']] },
-    { key: 'r2', h: `${N('r2')} · ${t.dev.r2.role || 'router'}`, f: [['dev.r2.name', 'Navn'], ['dev.r2.role', 'Rolle'], ['l2.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0']] },
-    { key: 'sw1', h: 'Switche', f: [['dev.sw1.name', 'Navn på HQ-switchen'], ['dev.sw1.role', 'Sted (vises som HQ)'], ['dev.sw2.name', 'Navn på branch-switchen'], ['dev.sw2.role', 'Sted (vises som Branch)']] },
+    { key: 'r3', h: `${N('r3')} · ${t.dev.r3.role || 'router'}`, f: [['dev.r3.icon', 'Ikon', '', 'icon'], ['dev.r3.name', 'Navn'], ['dev.r3.role', 'Rolle'], ['l3.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0']] },
+    { key: 'r2', h: `${N('r2')} · ${t.dev.r2.role || 'router'}`, f: [['dev.r2.icon', 'Ikon', '', 'icon'], ['dev.r2.name', 'Navn'], ['dev.r2.role', 'Rolle'], ['l2.lanIf', `Interface mod ${N('sw2')} (trunk)`, 'G0/0']] },
+    { key: 'sw1', h: 'Switche', f: [['dev.sw1.icon', 'Ikon for HQ-switchen', '', 'icon'], ['dev.sw1.name', 'Navn på HQ-switchen'], ['dev.sw1.role', 'Sted (vises som HQ)'], ['dev.sw2.icon', 'Ikon for branch-switchen', '', 'icon'], ['dev.sw2.name', 'Navn på branch-switchen'], ['dev.sw2.role', 'Sted (vises som Branch)']] },
     { key: 'notes', h: 'Noter', f: [['notes', 'Vises under topologien (fx routing)', '', 'area']] }
   ];
 }
@@ -2707,10 +2782,12 @@ function openNet(focus){
   let n = 0;
   $('nt-body').innerHTML = sections.map(s => `<section class="npsec" data-sec="${s.key}"><h3>${esc(s.h)}</h3>${s.f.some(f => f[3] === 'area') ? '' : '<div class="grid2">'}${s.f.map(([p, lab, ph, kind]) => {
     const id = 'nf-' + (n++), val = getP(t, p) ?? '';
+    if (kind === 'icon') return `<div class="field" style="grid-column:1/-1"><span class="lbl">${esc(lab)}</span><div class="ipick"><input type="hidden" data-k="${p}" value="${esc(val)}">${iconPickHTML(val)}</div></div>`;
     return kind === 'area'
       ? `<div class="field"><label for="${id}">${esc(lab)}</label><textarea id="${id}" data-k="${p}" maxlength="600"${readOnly ? ' disabled' : ''}>${esc(val)}</textarea></div>`
       : `<div class="field"><label for="${id}">${esc(lab)}</label><input id="${id}" data-k="${p}" value="${esc(val)}" maxlength="40" autocomplete="off" spellcheck="false"${ph ? ` placeholder="${esc(ph)}"` : ''}${readOnly ? ' disabled' : ''}></div>`;
   }).join('')}${s.f.some(f => f[3] === 'area') ? '' : '</div>'}</section>`).join('');
+  if (Object.keys(t.pos).length && !readOnly) $('nt-body').insertAdjacentHTML('afterbegin', '<p><button type="button" class="linkbtn" id="nt-repos">↺ Sæt enhederne tilbage på deres oprindelige pladser</button></p>');
   $('nt-save').hidden = readOnly; $('nt-reset').hidden = readOnly || !topoDoc;
   $('nt-reset').classList.remove('armed'); $('nt-reset').textContent = 'Nulstil til skabelonen';
   showPanel('npanel');
@@ -2722,6 +2799,11 @@ function openNet(focus){
   }, 30);
 }
 $('nt-cancel').onclick = closePanels;
+$('nt-body').addEventListener('click', e => {
+  if (!e.target.closest('#nt-repos')) return;
+  const next = topoNow(); next.pos = {};
+  closePanels(); saveTopo(next, 'Enhederne er sat tilbage på plads');
+});
 $('nform').addEventListener('submit', e => {
   e.preventDefault();
   if (readOnly || !ndraft) return;
@@ -2737,6 +2819,101 @@ $('nt-reset').onclick = () => {
   closePanels();
   saveTopo(JSON.parse(JSON.stringify(TOPO_DEFAULT)), 'Topologien er nulstillet til skabelonen');
 };
+
+/* Ikon-vælger (bruges i panelerne) */
+function iconPickHTML(sel){
+  return ICONS.map(([k, n]) => `<button type="button" data-icon="${k}" aria-pressed="${k === sel}"${readOnly ? ' disabled' : ''}><svg viewBox="${k === 'cloud' ? '-70 -42 140 76' : '-36 -30 72 60'}" aria-hidden="true">${iconSVG(k, 0, 0, 'currentColor')}</svg>${esc(n)}</button>`).join('');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.ipick [data-icon]'); if (!b || b.disabled) return;
+  const box = b.closest('.ipick');
+  box.querySelectorAll('[data-icon]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  const h = box.querySelector('input[type=hidden]'); if (h) h.value = b.dataset.icon;
+  if (box.id === 'ed-icons' && edraft) edraft.icon = b.dataset.icon;
+});
+
+/* Træk enheder rundt i tegningen. Placeringen gemmes for hele gruppen. */
+let tdrag = null, tdragEnd = 0;
+const svgPt = (svg, e) => { const m = svg && svg.getScreenCTM(); if (!m) return null; const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()); return [p.x, p.y]; };
+topoEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || readOnly || tdrag) return;
+  const g = e.target.closest('[data-drag]'); if (!g) return;
+  const key = g.dataset.drag, t = topoNow();
+  const ex = t.extra.find(x => x.id === key);
+  const start = ex ? [ex.x, ex.y] : TOPO_POS[key] ? posOf(t, key) : null;
+  const p = svgPt(g.ownerSVGElement, e); if (!p || !start) return;
+  tdrag = { key, pid: e.pointerId, x0: e.clientX, y0: e.clientY, off: [start[0] - p[0], start[1] - p[1]], moved: false, t };
+  e.preventDefault();
+});
+window.addEventListener('pointermove', e => {
+  const d = tdrag; if (!d || e.pointerId !== d.pid) return;
+  if (!d.moved){ if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 5) return; d.moved = true; document.body.classList.add('kgrabbing'); hideTip(); }
+  const p = svgPt($('topoSvg').querySelector('svg'), e); if (!p) return;
+  const x = Math.round(Math.max(60, Math.min(640, p[0] + d.off[0]))), y = Math.round(Math.max(60, Math.min(1400, p[1] + d.off[1])));
+  const ex = d.t.extra.find(z => z.id === d.key);
+  if (ex){ ex.x = x; ex.y = y; } else d.t.pos[d.key] = [x, y];
+  $('topoSvg').innerHTML = topoSVG(d.t);
+});
+function endTopoDrag(e, save){
+  const d = tdrag; if (!d || e.pointerId !== d.pid) return;
+  tdrag = null; document.body.classList.remove('kgrabbing');
+  if (!d.moved) return;
+  tdragEnd = Date.now();
+  if (save) saveTopo(d.t, 'Enheden er flyttet'); else renderTopo();
+}
+window.addEventListener('pointerup', e => endTopoDrag(e, true));
+window.addEventListener('pointercancel', e => endTopoDrag(e, false));
+
+/* Ekstra enheder (servere, PC'er, firewall m.m.) */
+let edraft = null;
+function openExtra(id){
+  const t = topoNow();
+  const e = id ? t.extra.find(x => x.id === id) : null;
+  if (id && !e) return;
+  const n = t.extra.length;
+  edraft = e ? { ...e } : { id: 'e' + Date.now().toString(36), icon: 'server', name: '', ip: '', link: 'sw2', x: 120 + (n % 5) * 110, y: 730 + Math.floor(n / 5) * 120, isNew: true };
+  $('ed-title').textContent = e ? (e.name || ICON_NAME[e.icon] || 'Enhed') : 'Ny enhed';
+  $('ed-icons').innerHTML = iconPickHTML(edraft.icon);
+  $('ed-name').value = edraft.name; $('ed-ip').value = edraft.ip;
+  const opts = [['', 'Ingen forbindelse'], ['wan', t.wan.name || 'Skolens net'], ...['r1', 'sw1', 'r3', 'r2', 'sw2'].map(k => [k, devName(t, k)]), ...t.extra.filter(x => x.id !== edraft.id).map(x => [x.id, x.name || ICON_NAME[x.icon]])];
+  $('ed-link').innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  $('ed-link').value = opts.some(o => o[0] === edraft.link) ? edraft.link : '';
+  $('eform').querySelectorAll('input, select').forEach(x => x.disabled = readOnly);
+  $('ed-save').hidden = readOnly; $('ed-del').hidden = !e || readOnly; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Slet';
+  $('ed-err').hidden = true;
+  showPanel('epanel');
+  setTimeout(() => (readOnly ? $('ed-cancel') : $('ed-name')).focus(), 30);
+}
+$('tAddDev').onclick = () => openExtra(null);
+$('ed-cancel').onclick = closePanels;
+$('ed-del').onclick = () => {
+  const b = $('ed-del');
+  if (!b.classList.contains('armed')){ b.classList.add('armed'); b.textContent = 'Klik igen for at slette'; return; }
+  if (!edraft || edraft.isNew) return;
+  const next = topoNow();
+  next.extra = next.extra.filter(x => x.id !== edraft.id).map(x => x.link === edraft.id ? { ...x, link: '' } : x);
+  closePanels(); saveTopo(next, `${edraft.name || 'Enheden'} er slettet`);
+};
+$('eform').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!edraft || readOnly) return;
+  const ip = $('ed-ip').value.trim();
+  if (ip && ip2n(ip) == null){ $('ed-err').textContent = `“${ip}” er ikke en gyldig IP-adresse.`; $('ed-err').hidden = false; return; }
+  const next = topoNow();
+  const ne = { id: edraft.id, icon: edraft.icon, name: $('ed-name').value.trim(), ip, link: $('ed-link').value, x: edraft.x, y: edraft.y };
+  const i = next.extra.findIndex(x => x.id === ne.id);
+  if (i >= 0){ ne.x = next.extra[i].x; ne.y = next.extra[i].y; next.extra[i] = ne; } else next.extra.push(ne);
+  closePanels();
+  saveTopo(next, i >= 0 ? `${ne.name || 'Enheden'} er gemt` : `${ne.name || ICON_NAME[ne.icon]} er tilføjet. Træk den derhen, hvor den skal stå.`);
+});
+
+/* Fortryd-knappen og Ctrl+Z */
+$('undoBtn').onclick = () => runUndo();
+document.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'z') return;
+  if (e.target.closest('input, textarea, select, [contenteditable]') || !$('veil').hidden) return;
+  e.preventDefault(); runUndo();
+});
 
 /* ---------- visning: Gantt eller Kanban ---------- */
 const HELP = {
