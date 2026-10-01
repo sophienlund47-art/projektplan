@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="10">
+<meta name="app-version" content="11">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -412,6 +412,12 @@ body.kgrabbing{user-select:none;-webkit-user-select:none}
 .ipick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--fg);background:var(--hover)}
 .ipick svg{width:56px;height:34px;color:var(--fg)}
 #undoBtn:disabled{opacity:.45;cursor:default}
+.textmode .tsvg text{cursor:text}
+.textmode .tsvg .nhit,.textmode .tsvg .vhit{pointer-events:none}
+.textmode .tsvg text:hover{fill:var(--accent);text-decoration:underline}
+.textmode .tsvg{outline:2px dashed color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:6px;border-radius:6px}
+#tEditText[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.tedit{position:fixed;z-index:58;border:2px solid var(--accent);border-radius:6px;background:var(--surface);color:var(--fg);padding:3px 7px;box-shadow:var(--shadow)}
 .bar.sel{outline:2px solid var(--accent);outline-offset:2px;z-index:3}
 .selband{position:fixed;z-index:40;border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:4px;pointer-events:none}
 body.noselect{user-select:none;-webkit-user-select:none}
@@ -531,6 +537,7 @@ label.btn{display:inline-flex;align-items:center}
         <button class="btn" id="tAddVlan" type="button">+ VLAN</button>
         <button class="btn" id="tAddDev" type="button">+ Enhed</button>
         <button class="btn" id="tAddText" type="button">+ Tekst</button>
+        <button class="btn" id="tEditText" type="button" aria-pressed="false">✎ Ret tekst</button>
         <button class="btn" id="tColors" type="button">Farver</button>
         <button class="btn" id="tEditNet" type="button">Enheder og links</button>
         <button class="btn" id="tPng" type="button">Download billede</button>
@@ -762,7 +769,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 10 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 11 · 30. september 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -775,7 +782,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 10</p>
+    <p class="gate-ver">Version 11</p>
   </div>
 </div>
 
@@ -2359,7 +2366,7 @@ const TOPO_DEFAULT = {
   colors: { hq: '', br: '' }, ccol: {},
   dev: { r1: { name: 'R1', role: 'HQ', icon: 'router', color: '' }, r2: { name: 'R2', role: 'Branch', icon: 'router', color: '' }, r3: { name: 'R3', role: 'Branch', icon: 'router', color: '' }, sw1: { name: 'SW1', role: 'HQ', icon: 'switch', color: '' }, sw2: { name: 'SW2', role: 'Branch', icon: 'switch', color: '' } },
   s1: { upIf: 'G0/1' }, s2: { r3If: 'G0/1', r2If: 'G0/2' },
-  pos: {}, extra: [], texts: [], aedit: {}, arows: [], cables: {}, loff: {},
+  pos: {}, extra: [], texts: [], aedit: {}, arows: [], cables: {}, loff: {}, tover: {},
   r1: { wanIf: 'G0/1/3', wanIp: '10.233.192.67', lanIf: 'G0/0' },
   l3: { net: '172.16.67.0/30', r1If: 'G0/1', r1Ip: '172.16.67.1', rIf: 'G0/1', rIp: '172.16.67.2', lanIf: 'G0/0' },
   l2: { net: '172.16.67.4/30', r1If: 'G0/1/0', r1Ip: '172.16.67.5', rIf: 'G0/1', rIp: '172.16.67.6', lanIf: 'G0/0' },
@@ -2412,6 +2419,8 @@ function normTopo(d){
   const colors = { hq: okCol(o.colors && o.colors.hq), br: okCol(o.colors && o.colors.br) };
   const ccol = {};
   if (o.ccol && typeof o.ccol === 'object') for (const [k, v] of Object.entries(o.ccol).slice(0, 60)) if (okColRe.test(v)) ccol[String(k).slice(0, 60)] = v;
+  const tover = {};
+  if (o.tover && typeof o.tover === 'object') for (const [k, v] of Object.entries(o.tover).slice(0, 500)) if (typeof v === 'string') tover[String(k).slice(0, 240)] = v.slice(0, 200);
   const cables = {};
   if (o.cables && typeof o.cables === 'object') for (const [k, v] of Object.entries(o.cables).slice(0, 60)) if (CABLE_NAME[v]) cables[String(k).slice(0, 60)] = v;
   const loff = {};
@@ -2420,7 +2429,7 @@ function normTopo(d){
   if (o.aedit && typeof o.aedit === 'object') for (const [k, v] of Object.entries(o.aedit).slice(0, 600)) if (typeof v === 'string') aedit[String(k).slice(0, 120)] = v.slice(0, 160);
   const arows = (Array.isArray(o.arows) ? o.arows : []).filter(r => r && typeof r === 'object').slice(0, 60).map((r, i) => ({
     id: typeof r.id === 'string' && /^a[\w-]{1,40}$/.test(r.id) ? r.id : 'a' + i, dev: str(r.dev, '', 40), ifc: str(r.ifc, '', 40), ip: str(r.ip, '', 40), mask: str(r.mask, '', 40), note: str(r.note, '', 160) }));
-  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, cables, loff, colors, ccol, notes: str(o.notes, D.notes, 600) };
+  return { wan, dev, r1: sec(o.r1, D.r1), l3: sec(o.l3, D.l3), l2: sec(o.l2, D.l2), s1: sec(o.s1, D.s1), s2: sec(o.s2, D.s2), vlans, pos, extra, texts, aedit, arows, cables, loff, colors, ccol, tover, notes: str(o.notes, D.notes, 600) };
 }
 const topoNow = () => normTopo(topoDoc || TOPO_DEFAULT);
 const devName = (t, k) => t.dev[k].name || k.toUpperCase();
@@ -2555,7 +2564,14 @@ function topoSVG(t){
   const maxY = Math.max(...Object.values(P).map(p => p[1]), ...t.texts.map(x => x.y + 20 * x.text.split('\n').length), P.sw1[1] + 60 + 16 * hq.length, P.sw2[1] + 60 + 16 * br.length);
   const W = 1200, H = Math.max(brEnd, maxY + 72, 654) + 24;
   const N = k => devName(t, k);
-  const txt = (x, y, s, st, anchor) => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${anchor ? ` text-anchor="${anchor}"` : ''} style="${st || ''}">${esc(s)}</text>`;
+  // Hver tekst får en nøgle (teksten + hvilken gang den forekommer), så den kan rettes i hånden
+  const seenTk = new Map();
+  const tkey = str => { const n = seenTk.get(str) || 0; seenTk.set(str, n + 1); return str + '§' + n; };
+  const ov = k => t.tover && k in t.tover ? t.tover[k] : null;
+  const txt = (x, y, s, st, anchor) => { s = String(s ?? ''); if (!s) return ''; const k = tkey(s), o = ov(k);
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${anchor ? ` text-anchor="${anchor}"` : ''} data-tk="${esc(k)}"${o != null ? ' data-edited=""' : ''} style="${st || ''}">${esc(o != null ? o : s)}</text>`; };
+  // Tekst med flere farver (tspan): rettes som én tekst
+  const rich = (attrs, plain, inner) => { const k = tkey(plain), o = ov(k); return `<text ${attrs} data-tk="${esc(k)}"${o != null ? ' data-edited=""' : ''}>${o != null ? esc(o) : inner}</text>`; };
   const unit = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
   const f1 = n => n.toFixed(1);
   let g = '';
@@ -2624,9 +2640,9 @@ function topoSVG(t){
         hosts += `<path d="M${RX + 26} ${cy + 14}V${hy}H${hx - 5}" style="fill:none;stroke:${col};stroke-width:1.3;stroke-opacity:.7"/>`
           + `<rect x="${hx}" y="${hy - 8}" width="11" height="16" rx="2" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.3"/>`
           + `<path d="M${hx + 2.5} ${hy - 3.5}h6M${hx + 2.5} ${hy + 0.5}h6" style="stroke:var(--muted);stroke-width:1.2"/>`
-          + `<text x="${hx + 18}" y="${hy + 4.5}" style="font-size:13px">` + v.hosts.map((h, i) =>
+          + rich(`x="${hx + 18}" y="${hy + 4.5}" style="font-size:13px"`, v.hosts.map(h => (h.name || 'Enhed') + (h.ip ? ' ' + shortIp(h.ip, c) : '')).join('  ·  '), v.hosts.map((h, i) =>
             (i ? `<tspan dx="12" style="fill:var(--muted)">·</tspan><tspan dx="12">` : '<tspan>') + esc(h.name || 'Enhed') + '</tspan>'
-            + (h.ip ? `<tspan dx="6" style="${MONO};font-size:12.5px;fill:var(--muted)">${esc(shortIp(h.ip, c))}</tspan>` : '')).join('') + '</text>';
+            + (h.ip ? `<tspan dx="6" style="${MONO};font-size:12.5px;fill:var(--muted)">${esc(shortIp(h.ip, c))}</tspan>` : '')).join(''));
       }
       rows += `<g data-vlan="${esc(v.id)}" tabindex="0" role="button" aria-label="VLAN ${v.vlan} ${esc(v.name)}, ${esc(v.net)}. Klik for at rette.">`
         + `<rect class="vhit" fill="transparent" x="${RX - 8}" y="${cy - RH / 2 + 3}" width="${RE - RX + 16}" height="${RH - 6 + hh}" rx="8"/>`
@@ -2681,7 +2697,7 @@ function topoSVG(t){
     if (!rows.length) continue;
     const y0 = y + (isRound(KIND[k]) ? 50 : 80);
     g += LB('ports:' + k, `<g data-net="sw1">` + txt(x, y0, 'ACCESS-PORTE', `${MONO};font-size:10.5px;letter-spacing:.08em;fill:var(--muted);${HALO}`, 'middle')
-      + rows.map((v, i) => `<text x="${x}" y="${f1(y0 + 17 + i * 16)}" text-anchor="middle" style="${MONO};font-size:12px;${HALO}">${esc(v.ports)}<tspan style="fill:var(--muted)"> → VLAN ${v.vlan}</tspan></text>`).join('') + '</g>');
+      + rows.map((v, i) => rich(`x="${x}" y="${f1(y0 + 17 + i * 16)}" text-anchor="middle" style="${MONO};font-size:12px;${HALO}"`, `${v.ports} → VLAN ${v.vlan}`, `${esc(v.ports)}<tspan style="fill:var(--muted)"> → VLAN ${v.vlan}</tspan>`)).join('') + '</g>');
   }
   for (const e of t.extra) g += device(e.id, `data-ext="${esc(e.id)}"`, e.icon, e.color || 'var(--accent)', e.name || ICON_NAME[e.icon] || 'Enhed', ICON_NAME[e.icon] || '', e.ip, `${e.name}, ${ICON_NAME[e.icon] || ''}`);
 
@@ -2797,7 +2813,7 @@ let topoPending = false, addrFocus = false;
 function renderTopo(){
   if (view !== 'topo' || (tdrag && tdrag.moved)) return;
   if (addrFocus){ topoPending = true; return; }
-  $('tAddVlan').hidden = readOnly; $('tAddDev').hidden = readOnly; $('tAddText').hidden = readOnly; $('tAddRow').hidden = readOnly;
+  $('tAddVlan').hidden = readOnly; $('tAddDev').hidden = readOnly; $('tEditText').hidden = readOnly; $('tAddText').hidden = readOnly; $('tAddRow').hidden = readOnly;
   if (!topoLoaded){ $('topoSvg').innerHTML = '<div class="tempty">Henter topologien…</div>'; return; }
   const t = topoNow(), checks = topoCheck(t);
   $('topoSvg').innerHTML = topoSVG(t);
@@ -2840,8 +2856,39 @@ topoEl.addEventListener('pointermove', e => {
 });
 topoEl.addEventListener('pointerleave', hideTip);
 topoEl.addEventListener('scroll', hideTip, { passive: true });
+let textMode = false;
+function setTextMode(on){
+  textMode = on; topoEl.classList.toggle('textmode', on);
+  $('tEditText').setAttribute('aria-pressed', String(on));
+  $('tEditText').textContent = on ? '✓ Færdig med at rette' : '✎ Ret tekst';
+  if (!on) closeTextEdit(false);
+}
+let tedit = null;
+function openTextEdit(textEl){
+  closeTextEdit(false);
+  const k = textEl.dataset.tk; if (!k) return;
+  const own = textEl.closest('[data-txt]');
+  if (own){ openText(own.dataset.txt); return; }
+  const r = textEl.getBoundingClientRect(), cs = getComputedStyle(textEl);
+  const inp = document.createElement('input');
+  inp.className = 'tedit'; inp.value = textEl.textContent; inp.setAttribute('aria-label', 'Ret teksten. Enter gemmer, Esc fortryder. Tom tekst giver den oprindelige tilbage.');
+  Object.assign(inp.style, { left: Math.max(4, r.left - 6) + 'px', top: (r.top - 5) + 'px', width: Math.max(140, r.width + 60) + 'px', fontSize: Math.max(12, parseFloat(cs.fontSize) * (r.height / (parseFloat(cs.fontSize) * 1.2) || 1)) + 'px', fontFamily: cs.fontFamily, fontWeight: cs.fontWeight });
+  document.body.appendChild(inp); inp.focus(); inp.select();
+  tedit = { inp, k, orig: k.slice(0, k.lastIndexOf('§')) };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); closeTextEdit(true); } else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeTextEdit(false); } });
+  inp.addEventListener('blur', () => setTimeout(() => closeTextEdit(true), 0));
+}
+function closeTextEdit(save){
+  const d = tedit; if (!d) return; tedit = null; d.inp.remove();
+  if (!save) return;
+  const v = d.inp.value.trim(), next = topoNow(), had = d.k in next.tover;
+  if (!v || v === d.orig){ if (!had) return; delete next.tover[d.k]; saveTopo(next, 'Den oprindelige tekst er sat tilbage'); return; }
+  if (had && next.tover[d.k] === v) return;
+  next.tover[d.k] = v; saveTopo(next, 'Teksten er rettet');
+}
 function topoActivate(el){
   if (Date.now() - tdragEnd < 350) return true;
+  if (textMode && !readOnly){ const te = el.closest('#topoSvg text'); if (te){ openTextEdit(te); return true; } }
   const x = el.closest('[data-ext]'); if (x){ openExtra(x.dataset.ext); return true; }
   const tx = el.closest('[data-txt]'); if (tx){ openText(tx.dataset.txt); return true; }
   const v = el.closest('[data-vlan]'); if (v){ hideTip(); openVlan(v.dataset.vlan); return true; }
@@ -2857,6 +2904,7 @@ topoEl.addEventListener('keydown', e => {
 $('tAddVlan').onclick = () => openVlan(null);
 $('tEditNet').onclick = () => openNet(null);
 $('tColors').onclick = () => openNet('colors');
+$('tEditText').onclick = () => setTextMode(!textMode);
 $('tCopyPlan').onclick = () => copyTable($('topoPlan'));
 $('tCopyAddr').onclick = () => copyTable($('topoAddr'));
 $('tPng').onclick = () => exportTopoPNG();
@@ -3032,6 +3080,7 @@ function openNet(focus){
       ? `<div class="field"><label for="${id}">${esc(lab)}</label><textarea id="${id}" data-k="${p}" maxlength="600"${readOnly ? ' disabled' : ''}>${esc(val)}</textarea></div>`
       : `<div class="field"><label for="${id}">${esc(lab)}</label><input id="${id}" data-k="${p}" value="${esc(val)}" maxlength="40" autocomplete="off" spellcheck="false"${ph ? ` placeholder="${esc(ph)}"` : ''}${readOnly ? ' disabled' : ''}></div>`;
   }).join('')}${s.f.some(f => f[3] === 'area') ? '' : '</div>'}</section>`).join('');
+  if (Object.keys(t.tover).length && !readOnly) $('nt-body').insertAdjacentHTML('afterbegin', `<p><button type="button" class="linkbtn" id="nt-untext">↺ Fjern alle ${Object.keys(t.tover).length} tekstrettelser i tegningen</button></p>`);
   if ((Object.keys(t.pos).length || Object.keys(t.loff).length) && !readOnly) $('nt-body').insertAdjacentHTML('afterbegin', '<p><button type="button" class="linkbtn" id="nt-repos">↺ Sæt enheder og tekster tilbage på deres oprindelige pladser</button></p>');
   $('nt-save').hidden = readOnly; $('nt-reset').hidden = readOnly || !topoDoc;
   $('nt-reset').classList.remove('armed'); $('nt-reset').textContent = 'Nulstil til skabelonen';
@@ -3045,6 +3094,7 @@ function openNet(focus){
 }
 $('nt-cancel').onclick = closePanels;
 $('nt-body').addEventListener('click', e => {
+  if (e.target.closest('#nt-untext')){ const next = topoNow(); next.tover = {}; closePanels(); saveTopo(next, 'Tekstrettelserne er fjernet'); return; }
   if (!e.target.closest('#nt-repos')) return;
   const next = topoNow(); next.pos = {}; next.loff = {};
   closePanels(); saveTopo(next, 'Enhederne er sat tilbage på plads');
@@ -3096,6 +3146,7 @@ let tdrag = null, tdragEnd = 0;
 const svgPt = (svg, e) => { const m = svg && svg.getScreenCTM(); if (!m) return null; const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()); return [p.x, p.y]; };
 topoEl.addEventListener('pointerdown', e => {
   if (e.button !== 0 || readOnly || tdrag) return;
+  if (textMode && e.target.closest('#topoSvg text')) return;
   const lb = e.target.closest('[data-lbl]');
   if (lb){
     const t = topoNow(), id = lb.dataset.lbl, p = svgPt(lb.ownerSVGElement, e); if (!p) return;
@@ -3249,7 +3300,7 @@ document.addEventListener('keydown', e => {
 const HELP = {
   gantt: 'Ctrl/Shift+klik eller træk en ramme på en tom plads for at vælge flere bjælker og flytte dem samtidig · træk en bjælke for at flytte den en halv time ad gangen · træk i højre kant for at ændre længden · træk i overemnets mørke streg for at flytte alle dets opgaver · klik på en tom plads i et overemne for at tilføje en opgave dér',
   board: 'Træk et kort eller en enkelt opgave til en anden kolonne for at ændre status · træk en opgave op eller ned for at ændre rækkefølgen · klik på boblen for at vælge status · klik på en opgave for at redigere',
-  topo: 'Klik på et VLAN, en enhed eller et link for at rette det (også kabeltypen) · træk i en tekst for at flytte den · tabellerne kan kopieres direkte ind i rapporten · “Download billede” giver topologien som PNG'
+  topo: 'Klik på et VLAN, en enhed eller et link for at rette det (også kabeltypen) · træk i en tekst for at flytte den · “✎ Ret tekst” lader dig klikke på al tekst og rette den · tabellerne kan kopieres direkte ind i rapporten · “Download billede” giver topologien som PNG'
 };
 function setView(v){
   closeStatusMenu(); hideTip();
