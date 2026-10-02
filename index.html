@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="12">
+<meta name="app-version" content="13">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -804,7 +804,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 12 · 1. oktober 2026</p>
+    <p class="note" id="p-ver">Appversion 13 · 1. oktober 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -817,7 +817,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 12</p>
+    <p class="gate-ver">Version 13</p>
   </div>
 </div>
 
@@ -2593,7 +2593,14 @@ function topoSVG(t){
   const KIND = { wan: t.wan.icon || 'cloud' }; for (const k of ['r1', 'r2', 'r3', 'sw1', 'sw2']) KIND[k] = t.dev[k].icon || (k[0] === 'r' ? 'router' : 'switch');
   for (const e of t.extra){ P[e.id] = [e.x, e.y]; KIND[e.id] = e.icon; }
   const RH = 54, HH = 30, CAP = 30;
-  const rowsH = list => list.length ? list.reduce((a, v) => a + RH + (v.hosts.length ? HH : 0), 0) : RH;
+  // Faste enheder brydes over flere linjer, så de aldrig løber ud over kanten
+  const HOST_W = RE - (RX + 80), HLINE = 19;
+  const hostLines = v => { const c = cidr(v.net), lines = [[]]; let w = 0;
+    for (const h of v.hosts){ const hw = TW(h.name || 'Enhed', 13) * 1.12 + (h.ip ? TW(shortIp(h.ip, c), 12.5, true) + 8 : 0) + 26;
+      if (lines[lines.length - 1].length && w + hw > HOST_W){ lines.push([]); w = 0; } lines[lines.length - 1].push(h); w += hw; }
+    return lines; };
+  const hostH = v => v.hosts.length ? HH + (hostLines(v).length - 1) * HLINE : 0;
+  const rowsH = list => list.length ? list.reduce((a, v) => a + RH + hostH(v), 0) : RH;
   const Y1 = P.sw1[1], YS2 = P.sw2[1];
   const hqTop = Math.max(24, Math.round(230 - rowsH(hq) / 2 - CAP)), hqEnd = hqTop + CAP + rowsH(hq);
   const brTop = Math.max(hqEnd + 34, Math.round(582 - rowsH(br) / 2 - CAP)), brEnd = brTop + CAP + rowsH(br);
@@ -2666,7 +2673,7 @@ function topoSVG(t){
     rows += txt(RX, top + 16, capTxt, `${MONO};font-size:11.5px;letter-spacing:.08em;fill:var(--muted)`);
     if (!vs.length){ ys.push(y + RH / 2); rows += txt(RX, y + RH / 2 + 4, 'Ingen VLAN endnu. Tilføj med “+ VLAN”.', 'font-size:13.5px;fill:var(--muted)'); }
     for (const v of vs){
-      const cy = y + RH / 2, c = cidr(v.net), hh = v.hosts.length ? HH : 0;
+      const cy = y + RH / 2, c = cidr(v.net), hh = hostH(v);
       ys.push(cy);
       const rn = k => devName(t, k) + ' ' + (shortIp(v[k], c) || '–') + (v.act === k ? ' (aktiv)' : '');
       const info = site === 'br' ? `HSRP ${shortIp(v.gw, c) || '–'} · ${rn('r2')} · ${rn('r3')}` : `Gateway ${shortIp(v.gw, c) || '–'}`;
@@ -2676,9 +2683,9 @@ function topoSVG(t){
         hosts += `<path d="M${RX + 26} ${cy + 14}V${hy}H${hx - 5}" style="fill:none;stroke:${col};stroke-width:1.3;stroke-opacity:.7"/>`
           + `<rect x="${hx}" y="${hy - 8}" width="11" height="16" rx="2" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.3"/>`
           + `<path d="M${hx + 2.5} ${hy - 3.5}h6M${hx + 2.5} ${hy + 0.5}h6" style="stroke:var(--muted);stroke-width:1.2"/>`
-          + rich(`x="${hx + 18}" y="${hy + 4.5}" style="font-size:13px"`, v.hosts.map(h => (h.name || 'Enhed') + (h.ip ? ' ' + shortIp(h.ip, c) : '')).join('  ·  '), v.hosts.map((h, i) =>
+          + hostLines(v).map((line, li) => rich(`x="${hx + 18}" y="${hy + 4.5 + li * HLINE}" style="font-size:13px"`, line.map(h => (h.name || 'Enhed') + (h.ip ? ' ' + shortIp(h.ip, c) : '')).join('  ·  '), line.map((h, i) =>
             (i ? `<tspan dx="12" style="fill:var(--muted)">·</tspan><tspan dx="12">` : '<tspan>') + esc(h.name || 'Enhed') + '</tspan>'
-            + (h.ip ? `<tspan dx="6" style="${MONO};font-size:12.5px;fill:var(--muted)">${esc(shortIp(h.ip, c))}</tspan>` : '')).join(''));
+            + (h.ip ? `<tspan dx="6" style="${MONO};font-size:12.5px;fill:var(--muted)">${esc(shortIp(h.ip, c))}</tspan>` : '')).join(''))).join('');
       }
       rows += `<g data-vlan="${esc(v.id)}" tabindex="0" role="button" aria-label="VLAN ${v.vlan} ${esc(v.name)}, ${esc(v.net)}. Klik for at rette.">`
         + `<rect class="vhit" fill="transparent" x="${RX - 8}" y="${cy - RH / 2 + 3}" width="${RE - RX + 16}" height="${RH - 6 + hh}" rx="8"/>`
