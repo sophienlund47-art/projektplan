@@ -6,7 +6,7 @@
 <title>Projektplan</title>
 <meta name="description" content="Gantt og Kanban til gruppeprojekter">
 <meta name="theme-color" content="#1b232b">
-<meta name="app-version" content="11">
+<meta name="app-version" content="12">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -412,6 +412,21 @@ body.kgrabbing{user-select:none;-webkit-user-select:none}
 .ipick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--fg);background:var(--hover)}
 .ipick svg{width:56px;height:34px;color:var(--fg)}
 #undoBtn:disabled{opacity:.45;cursor:default}
+.usearch{border:1px solid var(--line-3);background:var(--surface);border-radius:8px;padding:7px 10px;min-width:220px}
+.ustats{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:baseline}
+.ustats div{display:flex;flex-direction:column;gap:2px}
+.ustats b{font:700 26px var(--f-display);line-height:1}
+.ustats span{font-size:12.5px;color:var(--muted)}
+.ugrp{display:inline-flex;align-items:center;border:1px solid var(--line-2);background:var(--surface-2);border-radius:999px;padding:1px 8px;font:500 11.5px var(--f-mono);margin:1px 4px 1px 0;cursor:pointer;color:var(--fg)}
+.ugrp:hover{border-color:var(--fg)}
+.ugroups{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.ugcard{border:1px solid var(--line-2);border-radius:10px;padding:9px 12px;background:var(--surface-2);cursor:pointer;text-align:left;font:inherit;color:inherit}
+.ugcard:hover,.ugcard[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ugcard b{font:600 13px var(--f-mono)}
+.ugcard small{display:block;color:var(--muted);font-size:12px;margin-top:3px;line-height:1.4}
+.upw{font-family:var(--f-mono);letter-spacing:.04em}
+#uShowPw[aria-pressed="true"]{background:var(--hover);border-color:var(--fg)}
+mark{background:var(--goal);color:inherit;border-radius:3px;padding:0 1px}
 .textmode .tsvg text{cursor:text}
 .textmode .tsvg .nhit,.textmode .tsvg .vhit{pointer-events:none}
 .textmode .tsvg text:hover{fill:var(--accent);text-decoration:underline}
@@ -520,6 +535,7 @@ label.btn{display:inline-flex;align-items:center}
         <button type="button" role="tab" id="v-gantt" aria-selected="true">Gantt</button>
         <button type="button" role="tab" id="v-board" aria-selected="false">Kanban</button>
         <button type="button" role="tab" id="v-topo" aria-selected="false">Topologi</button>
+        <button type="button" role="tab" id="v-users" aria-selected="false">Brugere</button>
       </div>
       <div class="chips" id="chips"></div>
     </div>
@@ -532,6 +548,12 @@ label.btn{display:inline-flex;align-items:center}
           <button id="z-far" type="button" aria-pressed="false">Overblik</button>
         </div>
         <button class="btn" id="goNow" type="button">Nu</button>
+      </div>
+      <div class="gtools" id="userTools" hidden>
+        <input class="usearch" id="uSearch" type="search" placeholder="Søg navn, brugernavn, gruppe…" aria-label="Søg i brugerne" autocomplete="off">
+        <button class="btn" id="uShowPw" type="button" aria-pressed="false">Vis passwords</button>
+        <button class="btn" id="uCopy" type="button">Kopiér tabel</button>
+        <label class="btn" for="uFile">Importér CSV</label><input type="file" id="uFile" accept=".csv,text/csv,text/plain" hidden>
       </div>
       <div class="gtools" id="topoTools" hidden>
         <button class="btn" id="tAddVlan" type="button">+ VLAN</button>
@@ -550,6 +572,19 @@ label.btn{display:inline-flex;align-items:center}
   </div>
 
   <div class="board" id="board" hidden></div>
+
+  <section class="topo" id="users" hidden aria-label="Brugeroversigt">
+    <div class="tcard" id="uSummary"><div class="tempty">Henter brugerne…</div></div>
+    <div class="tcard">
+      <div class="tsec-h"><h3>Brugere</h3><span class="note" id="uNote">Klik på en afdeling for kun at se den.</span></div>
+      <div class="chips" id="uDepts" style="margin-bottom:12px"></div>
+      <div class="twrap"><table class="ttable" id="uTable"></table></div>
+    </div>
+    <div class="tcard">
+      <div class="tsec-h"><h3>Grupper</h3><span class="note">Hvem der er medlem af hvad. Klik på en gruppe for at filtrere.</span></div>
+      <div class="ugroups" id="uGroups"></div>
+    </div>
+  </section>
 
   <section class="topo" id="topo" hidden aria-label="Netværkstopologi">
     <div class="tcard">
@@ -769,7 +804,7 @@ label.btn{display:inline-flex;align-items:center}
   <section class="psec">
     <h3>Konto</h3>
     <p class="note" id="p-acct"></p>
-    <p class="note" id="p-ver">Appversion 11 · 30. september 2026</p>
+    <p class="note" id="p-ver">Appversion 12 · 1. oktober 2026</p>
     <div class="prow"><button class="btn" id="p-logout" type="button">Log ud</button></div>
   </section>
   <div class="actions"><span></span><button type="button" class="btn" id="p-close">Luk</button></div>
@@ -782,7 +817,7 @@ label.btn{display:inline-flex;align-items:center}
     <p id="gateText"></p>
     <button class="btn primary" id="gateBtn" type="button" hidden></button>
     <button class="linkbtn" id="gateOut" type="button" hidden>Log ud</button>
-    <p class="gate-ver">Version 11</p>
+    <p class="gate-ver">Version 12</p>
   </div>
 </div>
 
@@ -958,7 +993,7 @@ let who = 'all';
 const collapsed = new Set(LS.get(LSK + 'collapsed', []));
 let me = LS.get(LSK + 'me', null);
 let drag = null, kdrag = null, rdrag = null, sdrag = null, lastRowDragEnd = 0, firstPaint = true, editor = null;
-let view = location.hash === '#kanban' ? 'board' : location.hash === '#gantt' ? 'gantt' : location.hash === '#topologi' ? 'topo' : (v => v === 'board' || v === 'topo' ? v : 'gantt')(LS.get(LSK + 'view', 'gantt'));
+let view = location.hash === '#kanban' ? 'board' : location.hash === '#gantt' ? 'gantt' : location.hash === '#topologi' ? 'topo' : location.hash === '#brugere' ? 'users' : (v => v === 'board' || v === 'topo' || v === 'users' ? v : 'gantt')(LS.get(LSK + 'view', 'gantt'));
 let slots = [], slotIndex = new Map(), days = [], W = 0, occ = new Map(), M = { topics: [], kids: new Map() };
 const scroller = $('scroller');
 
@@ -1770,7 +1805,7 @@ $('i-apply').onclick = async () => {
 /* Slip filen hvor som helst på siden */
 let dragN = 0;
 const hasFiles = e => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
-window.addEventListener('dragenter', e => { if (!hasFiles(e) || readOnly) return; e.preventDefault(); dragN++; $('dropOverlay').hidden = false; });
+window.addEventListener('dragenter', e => { if (!hasFiles(e) || readOnly) return; e.preventDefault(); dragN++; if (view !== 'users') $('dropOverlay').hidden = false; });
 window.addEventListener('dragover', e => { if (!hasFiles(e) || readOnly) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
 window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragN = Math.max(0, dragN - 1); if (!dragN) $('dropOverlay').hidden = true; });
 window.addEventListener('drop', e => {
@@ -1778,6 +1813,7 @@ window.addEventListener('drop', e => {
   e.preventDefault(); dragN = 0; $('dropOverlay').hidden = true;
   if (readOnly){ toast('Du kan kun se tidsplanen.'); return; }
   const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f && view === 'users'){ importUsers(f); return; }
   if (f){ if ($('ipanel').hidden) openImport(); readImportFile(f); }
 });
 
@@ -3296,28 +3332,95 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); runUndo();
 });
 
+/* ---------- brugeroversigt (importeret fra CSV, gemt i settings/users) ---------- */
+/* Listen ligger kun i databasen bag login, ikke i selve appen, fordi den indeholder passwords. */
+const usersEl = $('users');
+let usersDoc = null, usersLoaded = false, uDept = '', uGroup = '', uShowPw = false;
+function parseUsersCSV(text){
+  const rows = TH.parseCSV(text);
+  if (rows.length < 2) return { error: 'Filen er tom.' };
+  const H = rows[0].map(h => TH.norm(h));
+  const col = (...names) => H.findIndex(h => names.some(n => h === n || h.includes(n)));
+  const c = { fn: col('fornavn', 'firstname', 'givenname'), ln: col('efternavn', 'lastname', 'surname'), id: col('id', 'brugernavn', 'username', 'samaccountname', 'login'),
+    pw: col('password', 'adgangskode', 'kodeord'), dept: col('afdeling', 'department'), title: col('stilling', 'title', 'jobtitel'), groups: col('grupper', 'groups', 'gruppe') };
+  if (c.fn < 0 && c.id < 0) return { error: 'Filen mangler kolonnerne “Fornavn” eller “ID”.' };
+  const get = (r, i) => i >= 0 ? String(r[i] || '').trim() : '';
+  const list = rows.slice(1).map(r => ({ fn: get(r, c.fn), ln: get(r, c.ln), id: get(r, c.id), pw: get(r, c.pw), dept: get(r, c.dept), title: get(r, c.title),
+    groups: get(r, c.groups).split(/[;,|]/).map(g => g.trim()).filter(Boolean) })).filter(u => u.fn || u.id).slice(0, 2000);
+  return list.length ? { list } : { error: 'Der er ingen brugere i filen.' };
+}
+const usersNow = () => (usersDoc && Array.isArray(usersDoc.rows) ? usersDoc.rows : []);
+function renderUsers(){
+  if (view !== 'users') return;
+  $('uFile').disabled = readOnly; $('uFile').previousElementSibling.hidden = readOnly;
+  if (!usersLoaded){ $('uSummary').innerHTML = '<div class="tempty">Henter brugerne…</div>'; return; }
+  const all = usersNow();
+  if (!all.length){
+    $('uSummary').innerHTML = `<div class="tempty"><strong style="display:block;color:var(--fg);font:600 17px var(--f-display);margin-bottom:6px">Ingen brugere endnu</strong>Klik <b>Importér CSV</b> og vælg brugeroversigten (fx Brugeroversigt.csv). Du kan også slippe filen her.</div>`;
+    $('uDepts').innerHTML = ''; $('uTable').innerHTML = ''; $('uGroups').innerHTML = ''; return;
+  }
+  const depts = new Map(), groups = new Map();
+  for (const u of all){ depts.set(u.dept || '—', (depts.get(u.dept || '—') || 0) + 1); for (const g of u.groups){ if (!groups.has(g)) groups.set(g, []); groups.get(g).push(u); } }
+  const when = usersDoc.importedAt ? new Date(usersDoc.importedAt) : null;
+  $('uSummary').innerHTML = `<div class="ustats"><div><b>${all.length}</b><span>brugere</span></div><div><b>${depts.size}</b><span>afdelinger</span></div><div><b>${groups.size}</b><span>grupper</span></div>`
+    + `<div style="margin-left:auto;text-align:right"><span>${esc(usersDoc.file || 'Importeret')}${when && !isNaN(when) ? ' · ' + dayName(dayIdxOf(when)) + ' kl. ' + fmtT(when.getHours() * 60 + when.getMinutes()) : ''}</span></div></div>`;
+  $('uDepts').innerHTML = `<button class="chip plain" type="button" data-udept="" aria-pressed="${!uDept}"><span>Alle</span><b>${all.length}</b></button>`
+    + [...depts].sort((a, b) => a[0].localeCompare(b[0], 'da')).map(([d, n]) => `<button class="chip plain" type="button" data-udept="${esc(d)}" aria-pressed="${uDept === d}"><span>${esc(d)}</span><b>${n}</b></button>`).join('');
+  const q = $('uSearch').value.trim().toLowerCase();
+  const hit = u => !q || [u.fn, u.ln, u.id, u.dept, u.title, ...u.groups].some(x => String(x).toLowerCase().includes(q));
+  const list = all.filter(u => (!uDept || (u.dept || '—') === uDept) && (!uGroup || u.groups.includes(uGroup)) && hit(u));
+  const mk = str => { str = esc(str); if (!q) return str; const i = str.toLowerCase().indexOf(esc(q)); return i < 0 ? str : str.slice(0, i) + '<mark>' + str.slice(i, i + esc(q).length) + '</mark>' + str.slice(i + esc(q).length); };
+  $('uNote').textContent = uGroup ? `Viser kun medlemmer af ${uGroup}. Klik på gruppen igen for at se alle.` : `${list.length} af ${all.length} brugere vises. Klik på en afdeling eller gruppe for at filtrere.`;
+  $('uTable').innerHTML = `<thead><tr><th>Navn</th><th>Brugernavn</th><th>Afdeling</th><th>Stilling</th><th>Grupper</th><th>Password</th></tr></thead><tbody>`
+    + (list.map(u => `<tr><td>${mk(u.fn + ' ' + u.ln)}</td><td class="m">${mk(u.id)}</td><td>${mk(u.dept)}</td><td class="mu">${mk(u.title)}</td><td style="white-space:normal">${u.groups.map(g => `<button type="button" class="ugrp" data-ugroup="${esc(g)}">${mk(g)}</button>`).join('')}</td><td class="upw">${u.pw ? (uShowPw ? esc(u.pw) : '••••••••') : ''}</td></tr>`).join('')
+      || '<tr><td colspan="6" class="mu">Ingen brugere matcher.</td></tr>') + '</tbody>';
+  $('uGroups').innerHTML = [...groups].sort((a, b) => a[0].localeCompare(b[0], 'da')).map(([g, us]) => `<button type="button" class="ugcard" data-ugroup="${esc(g)}" aria-pressed="${uGroup === g}"><b>${esc(g)}</b> <span class="mu">· ${us.length}</span><small>${esc(us.map(u => u.fn + ' ' + u.ln).join(', '))}</small></button>`).join('');
+}
+usersEl.addEventListener('click', e => {
+  const d = e.target.closest('[data-udept]'); if (d){ uDept = d.dataset.udept; renderUsers(); return; }
+  const g = e.target.closest('[data-ugroup]'); if (g){ uGroup = uGroup === g.dataset.ugroup ? '' : g.dataset.ugroup; renderUsers(); usersEl.scrollTo({ top: 0, behavior: 'smooth' }); }
+});
+$('uSearch').addEventListener('input', renderUsers);
+$('uShowPw').onclick = () => { uShowPw = !uShowPw; $('uShowPw').setAttribute('aria-pressed', String(uShowPw)); $('uShowPw').textContent = uShowPw ? 'Skjul passwords' : 'Vis passwords'; renderUsers(); };
+$('uCopy').onclick = () => copyTable($('uTable'));
+async function importUsers(file){
+  if (readOnly) return;
+  let res; try { res = parseUsersCSV(await file.text()); } catch(err){ res = { error: 'Filen kunne ikke læses.' }; }
+  if (res.error){ toast(res.error); return; }
+  const prev = usersDoc, data = { rows: res.list, file: String(file.name || '').slice(0, 80), importedAt: new Date().toISOString() };
+  const save = async d => { if (local || !db) LS.set(LSK + 'local-users', d); else if (d) await db.doc('settings/users').set(d); else await db.doc('settings/users').delete(); };
+  usersDoc = data; usersLoaded = true; renderUsers();
+  try { await save(data); toast(`${res.list.length} brugere er importeret`, { label: 'Fortryd', fn: async () => { usersDoc = prev; renderUsers(); await save(prev); } }); }
+  catch(err){ usersDoc = prev; renderUsers(); toast('Kunne ikke gemme brugerne. Prøv igen.'); }
+}
+$('uFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) importUsers(f); });
+
 /* ---------- visning: Gantt eller Kanban ---------- */
 const HELP = {
   gantt: 'Ctrl/Shift+klik eller træk en ramme på en tom plads for at vælge flere bjælker og flytte dem samtidig · træk en bjælke for at flytte den en halv time ad gangen · træk i højre kant for at ændre længden · træk i overemnets mørke streg for at flytte alle dets opgaver · klik på en tom plads i et overemne for at tilføje en opgave dér',
   board: 'Træk et kort eller en enkelt opgave til en anden kolonne for at ændre status · træk en opgave op eller ned for at ændre rækkefølgen · klik på boblen for at vælge status · klik på en opgave for at redigere',
+  users: 'Brugerne importeres fra CSV og gemmes kun i jeres database bag login · søg, eller klik på en afdeling eller gruppe for at filtrere · “Kopiér tabel” tager tabellen med til rapporten',
   topo: 'Klik på et VLAN, en enhed eller et link for at rette det (også kabeltypen) · træk i en tekst for at flytte den · “✎ Ret tekst” lader dig klikke på al tekst og rette den · tabellerne kan kopieres direkte ind i rapporten · “Download billede” giver topologien som PNG'
 };
 function setView(v){
   closeStatusMenu(); hideTip();
-  view = v === 'board' || v === 'topo' ? v : 'gantt';
+  view = v === 'board' || v === 'topo' || v === 'users' ? v : 'gantt';
   LS.set(LSK + 'view', view);
   $('v-gantt').setAttribute('aria-selected', String(view === 'gantt'));
   $('v-board').setAttribute('aria-selected', String(view === 'board'));
   $('v-topo').setAttribute('aria-selected', String(view === 'topo'));
+  $('v-users').setAttribute('aria-selected', String(view === 'users')); usersEl.hidden = view !== 'users'; $('userTools').hidden = view !== 'users';
   scroller.hidden = view !== 'gantt'; boardEl.hidden = view !== 'board'; topoEl.hidden = view !== 'topo';
-  $('ganttTools').hidden = view !== 'gantt'; $('topoTools').hidden = view !== 'topo'; $('chips').hidden = view === 'topo';
+  $('ganttTools').hidden = view !== 'gantt'; $('topoTools').hidden = view !== 'topo'; $('chips').hidden = view === 'topo' || view === 'users';
   $('help').textContent = HELP[view];
   render();
   if (view === 'topo') renderTopo();
+  if (view === 'users') renderUsers();
 }
 $('v-gantt').onclick = () => setView('gantt');
 $('v-board').onclick = () => setView('board');
 $('v-topo').onclick = () => setView('topo');
+$('v-users').onclick = () => setView('users');
 
 /* ---------- projekt, deling, backup og installation ---------- */
 let appApi = null, project = {}, deferredInstall = null, pendingImport = null;
@@ -3453,6 +3556,7 @@ $('p-export').onclick = () => {
   const settings = { team: { members: team || [] }, project: project || {} };
   if (lastSync) settings.sync = lastSync;
   if (topoDoc) settings.topology = topoDoc;
+  if (usersDoc) settings.users = usersDoc;
   const data = { format: 'projekt-tidsplan', version: 2, exportedAt: new Date().toISOString(), projectId: appApi ? appApi.projectId : null, collections: { items: itemsObj, settings } };
   const name = String(project.title || (appApi && appApi.projectTitle) || 'projekt').toLowerCase().replace(/æ/g, 'ae').replace(/ø/g, 'oe').replace(/å/g, 'aa').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'projekt';
   const a = document.createElement('a');
@@ -3487,8 +3591,9 @@ $('p-imp').addEventListener('click', async e => {
   closePanels();
   try {
     await commit(changes);
-    for (const k of ['team', 'project', 'sync', 'topology']) if (settings[k] && typeof settings[k] === 'object') await db.doc('settings/' + k).set(settings[k]);
+    for (const k of ['team', 'project', 'sync', 'topology', 'users']) if (settings[k] && typeof settings[k] === 'object') await db.doc('settings/' + k).set(settings[k]);
     if (settings.topology && typeof settings.topology === 'object'){ topoDoc = settings.topology; renderTopo(); }
+    if (settings.users && typeof settings.users === 'object'){ usersDoc = settings.users; usersLoaded = true; renderUsers(); }
     if (settings.project && settings.project.title && appApi && appApi.renameProject) appApi.renameProject(settings.project.title).catch(() => {});
     toast(`${changes.length} opgaver er importeret`);
   } catch(err){ handleWriteError(err); }
@@ -3542,8 +3647,10 @@ setView(view);
     lastSync = LS.get(LSK + 'local-sync', null);
     showBanner('Appen kan ikke forbinde til databasen. Ændringer gemmes kun i denne browser.');
     topoDoc = LS.get(LSK + 'local-topo', null); topoLoaded = true; renderTopo();
+    usersDoc = LS.get(LSK + 'local-users', null); usersLoaded = true; renderUsers();
     refresh(); return;
   }
+  db.doc('settings/users').onSnapshot(s => { usersDoc = s.exists ? (s.data() || null) : null; usersLoaded = true; renderUsers(); }, () => { usersLoaded = true; renderUsers(); });
   db.doc('settings/topology').onSnapshot(s => { topoDoc = s.exists ? (s.data() || null) : null; topoLoaded = true; renderTopo(); },
     () => { topoLoaded = true; renderTopo(); });
   db.doc('settings/project').onSnapshot(s => { applyProject(s.exists ? s.data() : null); }, () => {});
